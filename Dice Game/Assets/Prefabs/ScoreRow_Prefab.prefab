@@ -82,9 +82,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.Views.ScoreRowView
   _categoryNameText: {fileID: 6983497532518287478}
   _scoreText: {fileID: 328515160729185318}
-  _selectButton: {fileID: 0}
+  _selectButton: {fileID: 3532862421114216374}
   _filledColor: {r: 0, g: 0, b: 0, a: 1}
-  _potentialColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  _potentialColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!222 &2059807888019603249
 CanvasRenderer:
   m_ObjectHideFlags: 0
