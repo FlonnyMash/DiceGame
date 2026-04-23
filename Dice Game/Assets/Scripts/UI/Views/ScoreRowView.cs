@@ -21,14 +21,16 @@ namespace DiceGame.UI.Views
         // Sagt dem Controller: "Der Spieler will hier etwas eintragen!"
         public event Action<ScoreCategory> OnRowClicked;
 
+        // In ScoreRowView.cs
         public void Initialize(ScoreCategory category, string displayName)
         {
             Category = category;
             _categoryNameText.text = displayName;
             
-            // Wenn der Button geklickt wird, feuern wir unser Event ab
-            _selectButton.onClick.AddListener(() => OnRowClicked?.Invoke(Category));
+            // Falls der Button jetzt auf dem gleichen Objekt wie das Skript liegt:
+            if (_selectButton == null) _selectButton = GetComponent<Button>();
             
+            _selectButton.onClick.AddListener(() => OnRowClicked?.Invoke(Category));
             Clear();
         }
 
@@ -56,9 +58,12 @@ namespace DiceGame.UI.Views
             _selectButton.interactable = false;
         }
 
-        private void OnDestroy()
-        {
-            _selectButton.onClick.RemoveAllListeners();
+        private void OnDestroy(){
+    // Wir prüfen erst, ob der Button überhaupt (noch) existiert
+            if (_selectButton != null)
+                {
+                    _selectButton.onClick.RemoveAllListeners();
+                }
         }
     }
 }

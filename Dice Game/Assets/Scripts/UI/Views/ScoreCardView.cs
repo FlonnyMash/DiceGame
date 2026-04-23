@@ -24,17 +24,17 @@ namespace DiceGame.UI.Views
 
         public void Initialize()
         {
-            // Wir erstellen für jede mögliche Kategorie automatisch eine Zeile aus dem Prefab!
             foreach (ScoreCategory category in System.Enum.GetValues(typeof(ScoreCategory)))
             {
-                ScoreRowView newRow = Instantiate(_rowPrefab, _rowsContainer);
-                newRow.Initialize(category, category.ToString()); // .ToString() kann später durch lokalisierte Namen ersetzt werden
+                ScoreRowView newRow = Instantiate(_rowPrefab, _rowsContainer, false);
                 
+                // Macht aus "ThreeOfAKind" -> "Three Of A Kind"
+                string displayName = System.Text.RegularExpressions.Regex.Replace(category.ToString(), "([a-z])([A-Z])", "$1 $2");
+                
+                newRow.Initialize(category, displayName);
                 newRow.OnRowClicked += (cat) => OnCategoryClicked?.Invoke(cat);
-                
                 _rows.Add(category, newRow);
             }
-            
             UpdateTotals(0, 0, 0);
         }
 
