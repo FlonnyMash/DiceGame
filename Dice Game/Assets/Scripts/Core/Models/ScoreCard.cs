@@ -59,5 +59,9 @@ namespace DiceGame.Core.Models
                 .Select(c => _scores[c] ?? 0) // Wenn null, dann 0 für die Summe
                 .Sum();
         }
+
+        public bool IsComplete => _scores.Values.All(score => score.HasValue);
+
+        public int FilledCategoriesCount => _scores.Values.Count(score => score.HasValue);
     }
 }

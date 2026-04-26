@@ -1,3 +1,4 @@
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,6 +11,7 @@ namespace DiceGame.Controllers
     public class GameController : MonoBehaviour
     {
         [Header("UI References")]
+        [SerializeField] private GameOverView _gameOverView;
         [SerializeField] private List<DieView> _dieViews;
         [SerializeField] private Button _rollButton;
         [SerializeField] private ScoreCardView _scoreCardView; // NEU: Referenz auf unsere Punkte-UI
@@ -40,6 +42,10 @@ namespace DiceGame.Controllers
 
             // 4. Roll-Button verbinden
             _rollButton.onClick.AddListener(OnRollButtonClicked);
+
+            _gameOverView.OnRestartClicked += HandleRestart;
+            _gameOverView.OnMainMenuClicked += HandleMainMenu;
+            _gameOverView.Hide();
             
             // Startzustand herstellen
             StartNewTurn();
@@ -71,23 +77,26 @@ namespace DiceGame.Controllers
         }
 
         private void HandleCategoryClicked(ScoreCategory category)
-        {
-            // Prüfen, ob wir überhaupt schon gewürfelt haben
+{
             if (_diceCup.RollsLeft == DiceCup.MaxRolls) return; 
 
-            // Punkte für die gewählte Kategorie berechnen
             int points = ScoreCalculator.CalculateScore(_diceCup.Dice, category);
 
-            // Versuchen, die Punkte im Core-Modell zu speichern
             if (_scoreCard.SetScore(category, points))
             {
-                // UI aktualisieren
                 _scoreCardView.SetFinalScore(category, points);
                 _scoreCardView.ClearAllPotentials();
                 _scoreCardView.UpdateTotals(_scoreCard.UpperSectionRaw, _scoreCard.UpperSectionBonus, _scoreCard.GrandTotal);
 
-                // Neue Runde starten
-                StartNewTurn();
+                // PRÜFUNG: Ist das Spiel zu Ende?
+                if (_scoreCard.IsComplete)
+                {
+                    EndGame();
+                }
+                else
+                {
+                    StartNewTurn();
+                }
             }
         }
 
@@ -119,5 +128,23 @@ namespace DiceGame.Controllers
             if (_rollButton != null) _rollButton.onClick.RemoveAllListeners();
             if (_scoreCardView != null) _scoreCardView.OnCategoryClicked -= HandleCategoryClicked;
         }
+
+        private void EndGame()
+        {
+            _rollButton.interactable = false;
+            _gameOverView.Show(_scoreCard.GrandTotal); // Panel mit Punkten einblenden
+        }
+    
+        // Methode für den kompletten Neustart des Spiels
+        private void HandleRestart()
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        private void HandleMainMenu()
+        {
+            SceneManager.LoadScene("MainMenuScene");
+        }
+
     }
 }
