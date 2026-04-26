@@ -22,7 +22,7 @@ namespace DiceGame.UI.Views
 
         public void Show(int finalScore)
         {
-            _finalScoreText.text = $"Punkte: {finalScore}";
+            _finalScoreText.text = $"Score: {finalScore}";
             gameObject.SetActive(true);
         }
 
