@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DiceGame.Core.Rules;
+using DiceGame.Core.Models;
 
 namespace DiceGame.UI.Views
 {
@@ -64,6 +65,23 @@ namespace DiceGame.UI.Views
         {
             _upperBonusText.text = $"Bonus ({upperRaw}/63): {upperBonus}";
             _grandTotalText.text = $"Total: {grandTotal}";
+        }
+
+        public void RefreshDisplay(ScoreCard scoreCard)
+        {
+            foreach (var kvp in _rows)
+            {
+                int? score = scoreCard.GetScore(kvp.Key);
+                if (score.HasValue)
+                {
+                    kvp.Value.SetFinalScore(score.Value);
+                }
+                else
+                {
+                    kvp.Value.Clear();
+                }
+            }
+            UpdateTotals(scoreCard.UpperSectionRaw, scoreCard.UpperSectionBonus, scoreCard.GrandTotal);
         }
     }
 }
