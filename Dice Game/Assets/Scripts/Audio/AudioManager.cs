@@ -21,7 +21,7 @@ namespace DiceGame.Audio
                 if (_instance == null)
                 {
                     // 1. Schauen, ob er schon in der Szene ist
-                    _instance = FindObjectOfType<AudioManager>();
+                    _instance = Object.FindAnyObjectByType<AudioManager>();
 
                     // 2. Wenn nicht, aus dem Resources-Ordner laden
                     if (_instance == null)

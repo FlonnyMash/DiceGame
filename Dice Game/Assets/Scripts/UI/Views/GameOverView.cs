@@ -20,9 +20,12 @@ namespace DiceGame.UI.Views
         [SerializeField] private GameObject _newHighScoreImage;
 
         [Header("Multiplayer Elements")]
-        [SerializeField] private TextMeshProUGUI _multiplayerTitleText; // Für "Game Over"
-        // HIER IST DIE WICHTIGE ÄNDERUNG: Ein Array für die 4 Zeilen
-        [SerializeField] private LeaderboardEntry[] _leaderboardRows; 
+        [SerializeField] private TextMeshProUGUI _multiplayerTitleText; 
+        [SerializeField] private PlayerScoreEntry[] _playerScoreEntries; // Deine 4 Zeilen
+
+        // NEU: Hier kommen im Unity Inspector deine Sprites rein (z.B. 3 Stück für Platz 1-3)
+        [Header("Rank Sprites")]
+        [SerializeField] private Sprite[] _rankSprites; 
 
         [Header("Common Elements")]
         [SerializeField] private Button _restartButton;
@@ -49,15 +52,11 @@ namespace DiceGame.UI.Views
             {
                 PlayerPrefs.SetInt("HighScore", score);
                 _highScoreText.text = "New Personal Best!";
-                
-                // Bild einschalten, wenn ein neuer Rekord aufgestellt wurde
                 if (_newHighScoreImage != null) _newHighScoreImage.SetActive(true);
             }
             else
             {
                 _highScoreText.text = $"Personal Best: {currentHighScore}";
-                
-                // Bild ausschalten, falls kein Rekord gebrochen wurde
                 if (_newHighScoreImage != null) _newHighScoreImage.SetActive(false);
             }
 
@@ -74,19 +73,27 @@ namespace DiceGame.UI.Views
             // 1. Sortieren (Bester zuerst)
             var sortedPlayers = players.OrderByDescending(p => p.ScoreCard.GrandTotal).ToList();
 
-            // 2. Zeilen befüllen
-            for (int i = 0; i < _leaderboardRows.Length; i++)
+            // 2. Zeilen befüllen (Fehler behoben: _playerScoreEntries statt _leaderboardRows genutzt)
+            for (int i = 0; i < _playerScoreEntries.Length; i++)
             {
-                // Wenn wir für diese Zeile einen Spieler haben
                 if (i < sortedPlayers.Count)
                 {
-                    _leaderboardRows[i].gameObject.SetActive(true);
-                    _leaderboardRows[i].SetData(i + 1, sortedPlayers[i].Name, sortedPlayers[i].ScoreCard.GrandTotal);
+                    _playerScoreEntries[i].gameObject.SetActive(true);
+
+                    // NEU: Das richtige Sprite anhand des Platzes (Index i) suchen
+                    Sprite rankSprite = null;
+                    if (i < _rankSprites.Length)
+                    {
+                        rankSprite = _rankSprites[i];
+                    }
+
+                    // NEU: Wir übergeben das Sprite statt der Platzierungs-Zahl an SetData
+                    _playerScoreEntries[i].SetData(rankSprite, sortedPlayers[i].Name, sortedPlayers[i].ScoreCard.GrandTotal);
                 }
                 else
                 {
-                    // Wenn z.B. nur 2 Spieler spielen, verstecken wir Zeile 3 und 4
-                    _leaderboardRows[i].gameObject.SetActive(false);
+                    // Zeile verstecken, wenn kein Spieler dafür da ist
+                    _playerScoreEntries[i].gameObject.SetActive(false);
                 }
             }
 

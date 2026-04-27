@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -38,6 +40,10 @@ namespace DiceGame.UI.MainMenu
         [SerializeField] private Button _startGameButton;
         [SerializeField] private Button _backToTypeMenuButton;
 
+        [Header("Animation Settings")]
+        [SerializeField, Tooltip("Wie lange soll gewartet werden, damit man das Pressed-Image sieht?")] 
+        private float _buttonPressDelay = 0.15f;
+
         private int _currentPlayerCount = 1; 
         private const int MIN_PLAYERS = 1;
         private const int MAX_PLAYERS = 4;
@@ -46,27 +52,27 @@ namespace DiceGame.UI.MainMenu
         {
             _targetPosition = new Vector2(_mainMenuX, 0);
 
-            // Highscore im Main Menu laden und anzeigen
             if (_mainMenuHighScoreText != null)
             {
                 int highScore = PlayerPrefs.GetInt("HighScore", 0);
                 _mainMenuHighScoreText.text = $"High Score: {highScore}";
             }
 
-            // Events verknüpfen
-            if (_singleplayerButton) _singleplayerButton.onClick.AddListener(StartSingleplayer);
-            if (_multiplayerMenuButton) _multiplayerMenuButton.onClick.AddListener(() => MoveTo(_multiplayerTypeMenuX));
-            if (_localButton) _localButton.onClick.AddListener(() => MoveTo(_localSetupMenuX));
-            if (_backToMainButton) _backToMainButton.onClick.AddListener(() => MoveTo(_mainMenuX));
-            if (_startGameButton) _startGameButton.onClick.AddListener(StartLocalMultiplayer);
-            if (_backToTypeMenuButton) _backToTypeMenuButton.onClick.AddListener(() => MoveTo(_multiplayerTypeMenuX));
-            if (_addPlayerButton) _addPlayerButton.onClick.AddListener(AddPlayer);
-            if (_removePlayerButton) _removePlayerButton.onClick.AddListener(RemovePlayer);
+            // Events über die neue Wait-Coroutine verknüpfen
+            if (_singleplayerButton) _singleplayerButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_singleplayerButton, StartSingleplayer)));
+            if (_multiplayerMenuButton) _multiplayerMenuButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_multiplayerMenuButton, () => MoveTo(_multiplayerTypeMenuX))));
+            
+            if (_localButton) _localButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_localButton, () => MoveTo(_localSetupMenuX))));
+            if (_backToMainButton) _backToMainButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_backToMainButton, () => MoveTo(_mainMenuX))));
+            
+            if (_startGameButton) _startGameButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_startGameButton, StartLocalMultiplayer)));
+            if (_backToTypeMenuButton) _backToTypeMenuButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_backToTypeMenuButton, () => MoveTo(_multiplayerTypeMenuX))));
+            
+            if (_addPlayerButton) _addPlayerButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_addPlayerButton, AddPlayer)));
+            if (_removePlayerButton) _removePlayerButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_removePlayerButton, RemovePlayer)));
 
-            // NEU: Überwachung der Textfelder
             foreach (var input in _playerNameInputs)
             {
-                // Jedes Mal wenn sich der Text ändert, rufen wir die Prüfung auf
                 input.onValueChanged.AddListener(_ => ValidateInputs());
             }
 
@@ -83,6 +89,25 @@ namespace DiceGame.UI.MainMenu
                     Time.deltaTime * _slideSpeed
                 );
             }
+        }
+
+        /// <summary>
+        /// Gibt der im Unity-Editor eingestellten Button-Animation Zeit abzuspielen,
+        /// bevor die eigentliche Logik ausgeführt wird.
+        /// </summary>
+        private IEnumerator WaitAndExecute(Button button, Action actionToExecute)
+        {
+            // Verhindert, dass der Spieler mehrmals auf den Button hämmert
+            button.interactable = false;
+
+            // Warte die eingestellte Zeit, damit das Pressed-Image in Ruhe angezeigt wird
+            yield return new WaitForSeconds(_buttonPressDelay);
+
+            // Re-aktiviere den Button
+            button.interactable = true;
+
+            // Führe den Screenwechsel / die Aktion aus
+            actionToExecute?.Invoke();
         }
 
         private void MoveTo(float targetX)
@@ -124,18 +149,15 @@ namespace DiceGame.UI.MainMenu
                 _playerCountText.text = (_currentPlayerCount == 1) ? "1 Player (vs Bot)" : $"{_currentPlayerCount} Players";
             }
 
-            // Nach der UI-Änderung sofort prüfen, ob der Start-Button an sein darf
             ValidateInputs();
         }
 
-        // NEU: Diese Methode prüft, ob alle Namen da sind
         private void ValidateInputs()
         {
             bool allNamesEntered = true;
 
             for (int i = 0; i < _currentPlayerCount; i++)
             {
-                // Wenn ein aktives Feld leer ist (oder nur Leerzeichen hat)
                 if (string.IsNullOrWhiteSpace(_playerNameInputs[i].text))
                 {
                     allNamesEntered = false;
@@ -143,7 +165,6 @@ namespace DiceGame.UI.MainMenu
                 }
             }
 
-            // Start-Button nur anklickbar, wenn alle Namen eingetragen sind
             if (_startGameButton != null)
             {
                 _startGameButton.interactable = allNamesEntered;
@@ -152,7 +173,7 @@ namespace DiceGame.UI.MainMenu
 
         private void StartSingleplayer()
         {
-            GameSettings.PlayerNames = new List<string> { "Player 1" };
+            GameSettings.PlayerNames = new List<string> { "Player 1", "Bot" };
             SceneManager.LoadScene("InGameScene");
         }
 

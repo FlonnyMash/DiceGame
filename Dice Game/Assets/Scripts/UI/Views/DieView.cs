@@ -1,82 +1,79 @@
-using System;
-using System.Collections; // NEU: Wichtig für die Coroutinen (IEnumerator)
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
+using UnityEngine.UI; 
+using UnityEngine.EventSystems;
+using System;
+using System.Collections; // Wichtig für die Animation
 
 namespace DiceGame.UI.Views
 {
-    public class DieView : MonoBehaviour
+    public class DieView : MonoBehaviour, IPointerClickHandler
     {
-        [SerializeField] private Button _button;
-        [SerializeField] private TextMeshProUGUI _valueText;
-        [SerializeField] private Image _backgroundImage;
+        [SerializeField] private Image _dieImage; 
+        [SerializeField] private GameObject _heldHighlight; 
 
-        [Header("Colors")]
-        [SerializeField] private Color _normalColor = Color.white;
-        [SerializeField] private Color _heldColor = Color.gray;
+        [Header("Dice Faces (1 to 6)")]
+        [SerializeField] private Sprite[] _diceFaces; 
 
+        // Fix Fehler 2: Wir senden jetzt wieder einen 'int' (den Index) beim Klicken
         public event Action<int> OnDieClicked; 
 
         private int _dieIndex;
-        private bool _currentIsHeld; // NEU: Hier merken wir uns den Zustand
 
+        // Fix Fehler 1: Die fehlende Initialize Methode
         public void Initialize(int index)
         {
             _dieIndex = index;
-            _button.onClick.AddListener(() => OnDieClicked?.Invoke(_dieIndex));
         }
 
         public void UpdateView(int value, bool isHeld)
         {
-            _currentIsHeld = isHeld; // NEU: Zustand speichern
-            _valueText.text = value.ToString();
-            _backgroundImage.color = isHeld ? _heldColor : _normalColor;
-        }
-
-        // =========================================================================
-        // NEU: DIE ANIMATIONS-LOGIK
-        // =========================================================================
-
-        // Startet die Wackel-Animation, falls der Würfel nicht gehalten wird
-        public void AnimateRoll(int finalValue, float duration)
-        {
-            // Wenn der Würfel gehalten wird: Nichts tun, nicht wackeln.
-            if (_currentIsHeld) return;
-
-            // Sicherheitsnetz: Falls eine alte Animation läuft, stoppe sie.
-            StopAllCoroutines(); 
-            // Starte die Flimmer-Routine
-            StartCoroutine(RollRoutine(finalValue, duration));
-        }
-
-        private IEnumerator RollRoutine(int finalValue, float duration)
-        {
-            float elapsed = 0f;
-            float flimmerSpeed = 0.05f; // Wie schnell die Zahlen wechseln (alle 0.05 Sek)
-
-            while (elapsed < duration)
+            // Das richtige Bild setzen
+            if (value >= 1 && value <= 6 && _diceFaces.Length == 6)
             {
-                // 1. Zeige eine zufällige Zahl zwischen 1 und 6 an
-                int randomFace = UnityEngine.Random.Range(1, 7);
-                _valueText.text = randomFace.ToString();
-                
-                // 2. Farbe auf normal setzen (während er wackelt, ist er nicht grau)
-                _backgroundImage.color = _normalColor;
-
-                // 3. Kurz warten
-                elapsed += flimmerSpeed;
-                yield return new WaitForSeconds(flimmerSpeed);
+                _dieImage.sprite = _diceFaces[value - 1];
             }
 
-            // Am Ende der Animation: Hart das echte Endergebnis setzen
-            UpdateView(finalValue, _currentIsHeld);
+            // Den "Gehalten"-Status anzeigen
+            if (_heldHighlight != null)
+            {
+                _heldHighlight.SetActive(isHeld);
+            }
         }
-        // =========================================================================
 
-        private void OnDestroy()
+        public void OnPointerClick(PointerEventData eventData)
         {
-            if (_button != null) _button.onClick.RemoveAllListeners();
+            // Sende den Index an den GameController
+            OnDieClicked?.Invoke(_dieIndex);
+        }
+
+// Wir fordern jetzt beide Werte an: den finalen Wert und die Dauer
+        public void AnimateRoll(int finalValue, float duration)
+        {
+            StartCoroutine(RollAnimationRoutine(finalValue, duration));
+        }
+
+        private IEnumerator RollAnimationRoutine(int finalValue, float duration)
+        {
+            float elapsed = 0f;
+            
+            // 1. Die wilde "Roll"-Phase (zufällige Bilder)
+            while (elapsed < duration)
+            {
+                if (_diceFaces.Length > 0)
+                {
+                    int randomFace = UnityEngine.Random.Range(0, _diceFaces.Length);
+                    _dieImage.sprite = _diceFaces[randomFace];
+                }
+                
+                yield return new WaitForSeconds(0.05f);
+                elapsed += 0.05f;
+            }
+
+            // 2. Das große Finale: Den echten, erwürfelten Wert anzeigen!
+            if (finalValue >= 1 && finalValue <= 6 && _diceFaces.Length == 6)
+            {
+                _dieImage.sprite = _diceFaces[finalValue - 1];
+            }
         }
     }
 }
