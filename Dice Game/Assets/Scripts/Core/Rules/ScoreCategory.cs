@@ -16,7 +16,7 @@ namespace DiceGame.Core.Rules
         FullHouse,
         SmallStraight,
         LargeStraight,
-        Yahtzee,
+        NicerDicer,
         Chance
     }
 }

@@ -47,7 +47,7 @@ namespace DiceGame.Core.Models
 
         public int LowerSectionTotal => GetCategoriesSum(new[] {
             ScoreCategory.ThreeOfAKind, ScoreCategory.FourOfAKind, ScoreCategory.FullHouse,
-            ScoreCategory.SmallStraight, ScoreCategory.LargeStraight, ScoreCategory.Yahtzee,
+            ScoreCategory.SmallStraight, ScoreCategory.LargeStraight, ScoreCategory.NicerDicer,
             ScoreCategory.Chance
         });
 

@@ -3,9 +3,11 @@ using System.Collections;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 using DiceGame.Core.Models;
 using DiceGame.Core.Rules;
 using DiceGame.UI.Views;
+using DiceGame.Core.AI;
 
 namespace DiceGame.Controllers
 {
@@ -18,11 +20,13 @@ namespace DiceGame.Controllers
         [SerializeField] private ScoreCardView _scoreCardView;
         [SerializeField] private GameOverView _gameOverView;
         [SerializeField] private TMPro.TextMeshProUGUI _currentPlayerNameText;
+        [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
 
         // Core Models
         private DiceCup _diceCup;
         private List<Player> _players = new List<Player>();
         private int _currentPlayerIndex = 0;
+        private bool _isEndingTurn = false;
 
         private Player CurrentPlayer => _players[_currentPlayerIndex];
 
@@ -135,11 +139,11 @@ namespace DiceGame.Controllers
 
         private void HandleCategoryClicked(ScoreCategory category)
         {
-            if (_diceCup.RollsLeft == DiceCup.MaxRolls) return; 
+            // Wenn wir gerade den Zug beenden, ignorieren wir weitere Klicks (Spam-Schutz)
+            if (_diceCup.RollsLeft == DiceCup.MaxRolls || _isEndingTurn) return; 
 
             int points = ScoreCalculator.CalculateScore(_diceCup.Dice, category);
 
-            // Nutze die ScoreCard des aktuellen Spielers
             if (CurrentPlayer.ScoreCard.SetScore(category, points))
             {
                 _scoreCardView.SetFinalScore(category, points);
@@ -149,9 +153,27 @@ namespace DiceGame.Controllers
                     CurrentPlayer.ScoreCard.UpperSectionBonus, 
                     CurrentPlayer.ScoreCard.GrandTotal
                 );
+                
+                UpdateMultiplayerScoreTracker();
 
-                CheckGameState();
+                // STATT CheckGameState() rufen wir jetzt unsere neue Warte-Routine auf:
+                StartCoroutine(EndTurnSequence());
             }
+        }
+
+        private System.Collections.IEnumerator EndTurnSequence()
+        {
+            // 1. Zug-Ende markieren und Buttons sperren
+            _isEndingTurn = true;
+            _rollButton.interactable = false; 
+
+            // 2. Das Spiel hält für 2 Sekunden an! 
+            // In dieser Zeit sieht man die frisch eingetragenen Punkte aufleuchten.
+            yield return new WaitForSeconds(2.0f);
+
+            // 3. Sperre aufheben und ganz normal zum nächsten Spieler wechseln
+            _isEndingTurn = false;
+            CheckGameState();
         }
 
         private void CheckGameState()
@@ -162,17 +184,28 @@ namespace DiceGame.Controllers
             }
             else
             {
-                // Nächster Spieler
+                // Wir merken uns, wer gerade dran WAR
+                int previousPlayerIndex = _currentPlayerIndex;
+                
+                // Wir schalten zum NÄCHSTEN Spieler um
                 _currentPlayerIndex = (_currentPlayerIndex + 1) % _players.Count;
                 
-                // Wenn es mehr als 1 Spieler gibt UND der nächste Spieler nicht der Bot ist: Overlay zeigen!
-                if (_players.Count > 1 && CurrentPlayer.Name != "Bot")
+                // Logik-Check:
+                // Ein "Pass Device" macht nur Sinn, wenn:
+                // 1. Mehr als 1 Spieler im Spiel ist.
+                // 2. Der Spieler, der gerade fertig wurde, KEIN Bot war.
+                // 3. Der Spieler, der jetzt dran kommt, KEIN Bot ist.
+                bool wasHuman = _players[previousPlayerIndex].Name != "Bot";
+                bool isNextHuman = CurrentPlayer.Name != "Bot";
+
+                if (_players.Count > 1 && wasHuman && isNextHuman)
                 {
                     _passDeviceView.Show(CurrentPlayer.Name);
                 }
                 else
                 {
-                    // Singleplayer oder Bot: Wir können direkt weitermachen
+                    // Wenn ein Bot im Spiel ist oder es Singleplayer ist, 
+                    // geht es sofort ohne Overlay weiter.
                     HandlePlayerReady();
                 }
             }
@@ -193,8 +226,22 @@ namespace DiceGame.Controllers
         private void StartNewTurn()
         {
             _diceCup.ResetTurn();
-            _rollButton.interactable = true;
             _scoreCardView.ClearAllPotentials(); 
+
+            UpdateMultiplayerScoreTracker();
+            
+            // NEU: Bot-Weiche
+            if (CurrentPlayer.Name == "Bot")
+            {
+                // Bot ist dran: UI sperren und Bot-Routine starten
+                _rollButton.interactable = false;
+                StartCoroutine(RunBotTurn());
+            }
+            else
+            {
+                // Mensch ist dran: Button freigeben
+                _rollButton.interactable = true;
+            }
         }
 
         private void EndGame()
@@ -282,6 +329,80 @@ namespace DiceGame.Controllers
                     _currentPlayerNameText.color = (CurrentPlayer.Name == "Bot") ? Color.red : Color.white;
                 }
             }
+        }
+
+        private System.Collections.IEnumerator RunBotTurn()
+        {
+            // Der Bot würfelt 2 bis 3 Mal (damit es nicht immer vorhersehbar ist)
+            int rollsToDo = UnityEngine.Random.Range(2, 4);
+
+            for (int r = 0; r < rollsToDo; r++)
+            {
+                // 1. Kurze Denkpause vor dem Würfeln
+                yield return new WaitForSeconds(1.0f);
+
+                // 2. Bot würfelt (nutzt unsere bestehende Würfel-Logik & Animation!)
+                _diceCup.Roll();
+                yield return StartCoroutine(HandleRollAnimation());
+
+                // 3. Wenn es nicht der letzte Wurf ist, entscheidet der Bot, was er behält
+                if (r < rollsToDo - 1)
+                {
+                    yield return new WaitForSeconds(0.8f); // Bot schaut sich die Würfel an
+                    
+                    List<int> diceToHold = BotLogic.GetDiceToHold(_diceCup.Dice);
+                    
+                    // Jeden ausgewählten Würfel einzeln antippen (mit kurzer Verzögerung wie ein Mensch)
+                    foreach (int index in diceToHold)
+                    {
+                        if (!_diceCup.Dice[index].IsHeld)
+                        {
+                            _diceCup.Dice[index].ToggleHold();
+                            _dieViews[index].UpdateView(_diceCup.Dice[index].Value, true);
+                            yield return new WaitForSeconds(0.3f);
+                        }
+                    }
+                }
+            }
+
+            // 4. Letzte Denkpause, bevor er die Punkte einträgt
+            yield return new WaitForSeconds(1.2f);
+
+            // 5. Bot fragt sein Gehirn nach der besten Kategorie
+            ScoreCategory chosenCategory = BotLogic.ChooseBestCategory(CurrentPlayer.ScoreCard, _diceCup.Dice);
+            
+            // 6. Bot simuliert den Klick auf die Kategorie!
+            HandleCategoryClicked(chosenCategory); 
+        }
+
+        private void UpdateMultiplayerScoreTracker()
+        {
+            // Wenn das Textfeld nicht verknüpft ist oder wir im reinen Singleplayer sind, 
+            // machen wir das Feld unsichtbar.
+            if (_multiplayerScoreTrackerText == null) return;
+
+            if (_players.Count <= 1)
+            {
+                _multiplayerScoreTrackerText.gameObject.SetActive(false);
+                return;
+            }
+
+            _multiplayerScoreTrackerText.gameObject.SetActive(true);
+
+            // Wir bauen den Text zusammen
+            string trackerString = "";
+            for (int i = 0; i < _players.Count; i++)
+            {
+                trackerString += $"{_players[i].Name}: {_players[i].ScoreCard.GrandTotal}";
+                
+                // Füge den Trennstrich hinzu (außer nach dem letzten Spieler)
+                if (i < _players.Count - 1)
+                {
+                    trackerString += "   |   ";
+                }
+            }
+
+            _multiplayerScoreTrackerText.text = trackerString;
         }
 
     }

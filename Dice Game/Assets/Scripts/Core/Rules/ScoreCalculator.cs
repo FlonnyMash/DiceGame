@@ -21,13 +21,13 @@ namespace DiceGame.Core.Rules
                 case ScoreCategory.Sixes:  return SumOfSpecificValue(values, 6);
 
                 // Unterer Block
-                case ScoreCategory.ThreeOfAKind: return HasNOfAKind(values, 3) ? values.Sum() : 0;
-                case ScoreCategory.FourOfAKind:  return HasNOfAKind(values, 4) ? values.Sum() : 0;
-                case ScoreCategory.FullHouse:     return IsFullHouse(values) ? 25 : 0;
-                case ScoreCategory.SmallStraight: return IsStraight(values, 4) ? 30 : 0;
-                case ScoreCategory.LargeStraight: return IsStraight(values, 5) ? 40 : 0;
-                case ScoreCategory.Yahtzee:       return HasNOfAKind(values, 5) ? 50 : 0;
-                case ScoreCategory.Chance:        return values.Sum();
+                case ScoreCategory.ThreeOfAKind:    return HasNOfAKind(values, 3) ? values.Sum() : 0;
+                case ScoreCategory.FourOfAKind:     return HasNOfAKind(values, 4) ? values.Sum() : 0;
+                case ScoreCategory.FullHouse:       return IsFullHouse(values) ? 25 : 0;
+                case ScoreCategory.SmallStraight:   return IsStraight(values, 4) ? 30 : 0;
+                case ScoreCategory.LargeStraight:   return IsStraight(values, 5) ? 40 : 0;
+                case ScoreCategory.NicerDicer:      return HasNOfAKind(values, 5) ? 50 : 0;
+                case ScoreCategory.Chance:          return values.Sum();
                 
                 default: return 0;
             }

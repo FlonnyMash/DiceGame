@@ -24,7 +24,7 @@ namespace DiceGame.UI.Views
         public void Show(string nextPlayerName)
         {
             // Text setzen und Panel einblenden
-            _messageText.text = $"{nextPlayerName} ist dran!\nGerät übergeben.";
+            _messageText.text = $"{nextPlayerName} is next!\nPass the device.";
             gameObject.SetActive(true);
         }
 
