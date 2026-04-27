@@ -3,6 +3,7 @@ using System.Collections;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using TMPro;
 using DiceGame.Core.Models;
 using DiceGame.Core.Rules;
@@ -22,6 +23,9 @@ namespace DiceGame.Controllers
         [SerializeField] private GameOverView _gameOverView;
         [SerializeField] private TMPro.TextMeshProUGUI _currentPlayerNameText;
         [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
+
+        [Header("UI Panels")]
+        [SerializeField] private GameObject _optionsPanel;
 
         [Header("Audio Clips")]
         [SerializeField] private AudioClip[] _rollDiceSounds;
@@ -432,6 +436,38 @@ namespace DiceGame.Controllers
             }
 
             _multiplayerScoreTrackerText.text = trackerString;
+        }
+
+        // Wird vom Zahnrad-Button aufgerufen
+        public void OpenOptions()
+        {
+            if (_optionsPanel != null)
+            {
+                _optionsPanel.SetActive(true);
+                
+                // Optional: Einen Klick-Sound abspielen
+                if (DiceGame.Audio.AudioManager.Instance != null)
+                {
+                    // AudioManager.Instance.PlaySFX(_scoreCategorySound); // oder einen eigenen Klick-Sound
+                }
+            }
+        }
+
+        // Wird vom "Weiterspielen"-Button aufgerufen
+        public void CloseOptions()
+        {
+            if (_optionsPanel != null)
+            {
+                _optionsPanel.SetActive(false);
+            }
+        }
+
+        // Wird vom "Hauptmenü"-Button aufgerufen
+        public void GoToMainMenu()
+        {
+            // Lade die Main Menu Szene. 
+            // ACHTUNG: Der Name hier muss EXAKT so lauten wie deine Szene im Projekt!
+            SceneManager.LoadScene("MainMenuScene"); 
         }
 
     }
