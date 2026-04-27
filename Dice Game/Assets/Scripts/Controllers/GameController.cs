@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,10 +12,12 @@ namespace DiceGame.Controllers
     public class GameController : MonoBehaviour
     {
         [Header("UI References")]
+        [SerializeField] private PassDeviceView _passDeviceView;
         [SerializeField] private List<DieView> _dieViews;
         [SerializeField] private Button _rollButton;
         [SerializeField] private ScoreCardView _scoreCardView;
         [SerializeField] private GameOverView _gameOverView;
+        [SerializeField] private TMPro.TextMeshProUGUI _currentPlayerNameText;
 
         // Core Models
         private DiceCup _diceCup;
@@ -51,6 +54,12 @@ namespace DiceGame.Controllers
                 _gameOverView.OnMainMenuClicked += HandleMainMenu;
                 _gameOverView.Hide();
             }
+
+            if (_passDeviceView != null)
+            {
+                _passDeviceView.OnReadyClicked += HandlePlayerReady;
+                _passDeviceView.Hide(); // Am Anfang verstecken
+            }
         }
 
         public void SetupGame(List<string> names)
@@ -69,16 +78,51 @@ namespace DiceGame.Controllers
 
         private void OnRollButtonClicked()
         {
+            // Erst normal würfeln (Daten ändern sich im Hintergrund sofort)
             bool success = _diceCup.Roll();
             if (success)
             {
-                UpdatePotentialScores();
+                // Dann die Animation starten
+                StartCoroutine(HandleRollAnimation());
+            }
+        }
+
+        private IEnumerator HandleRollAnimation()
+        {
+            // 1. Buttons sperren
+            _rollButton.interactable = false;
+            // Falls du die Punktekarte auch sperren willst:
+            // _scoreCardView.interactable = false; // Müsstest du in ScoreCardView bauen
+
+            float duration = 0.6f; // Dauer des Flimmerns
+
+            // 2. Allen Würfeln sagen, sie sollen wackeln
+            foreach (var dieView in _dieViews)
+            {
+                // Wir holen uns den echten Endwert aus der DiceCup Logik, 
+                // aber das wissen wir hier im Controller nicht direkt pro Index. 
+                // Einfacher ist es, die Daten im DiceCup abzufragen:
             }
             
-            if (_diceCup.RollsLeft <= 0)
+            // Korrektur für die Schleife (damit wir den Index haben):
+            for (int i = 0; i < _diceCup.Dice.Count; i++)
             {
-                _rollButton.interactable = false;
+                // Wir übergeben den finalen Wert, damit der Würfel weiß, wo er stoppen muss.
+                // Ob er wackelt, entscheidet er selbst (isHeld Check).
+                _dieViews[i].AnimateRoll(_diceCup.Dice[i].Value, duration);
             }
+
+            // 3. Der Controller wartet 0.6 Sekunden
+            yield return new WaitForSeconds(duration);
+
+            // 4. Animation fertig -> Punkte berechnen und Buttons freigeben
+            UpdatePotentialScores();
+            
+            if (_diceCup.RollsLeft > 0)
+            {
+                _rollButton.interactable = true;
+            }
+            // _scoreCardView.interactable = true;
         }
 
         private void HandleDieClicked(int dieIndex)
@@ -112,31 +156,26 @@ namespace DiceGame.Controllers
 
         private void CheckGameState()
         {
-            // Prüfen, ob ALLE Spieler fertig sind (alle Felder voll)
             if (_players.All(p => p.ScoreCard.IsComplete))
             {
                 EndGame();
             }
             else
             {
-                // Nächster Spieler (Ringtausch)
+                // Nächster Spieler
                 _currentPlayerIndex = (_currentPlayerIndex + 1) % _players.Count;
                 
-                if (_players.Count > 1)
+                // Wenn es mehr als 1 Spieler gibt UND der nächste Spieler nicht der Bot ist: Overlay zeigen!
+                if (_players.Count > 1 && CurrentPlayer.Name != "Bot")
                 {
-                    // LOGIK: Hier würde später das "Pass Device" Overlay eingeblendet
-                    Debug.Log($"Nächster Spieler: {CurrentPlayer.Name}");
+                    _passDeviceView.Show(CurrentPlayer.Name);
                 }
-                
-                RefreshUIForCurrentPlayer();
-                StartNewTurn();
+                else
+                {
+                    // Singleplayer oder Bot: Wir können direkt weitermachen
+                    HandlePlayerReady();
+                }
             }
-        }
-
-        private void RefreshUIForCurrentPlayer()
-        {
-            _scoreCardView.RefreshDisplay(CurrentPlayer.ScoreCard);
-            // Optional: UI-Text für den aktuellen Namen aktualisieren
         }
 
         private void UpdatePotentialScores()
@@ -161,8 +200,18 @@ namespace DiceGame.Controllers
         private void EndGame()
         {
             _rollButton.interactable = false;
-            if (_gameOverView != null)
-                _gameOverView.Show(CurrentPlayer.ScoreCard.GrandTotal);
+            
+            if (_gameOverView == null) return;
+
+            // Wir prüfen einfach die Anzahl der Spieler
+            if (_players.Count == 1)
+            {
+                _gameOverView.ShowSinglePlayer(_players[0].ScoreCard.GrandTotal);
+            }
+            else
+            {
+                _gameOverView.ShowMultiPlayer(_players);
+            }
         }
 
         private void HandleRestart()
@@ -186,5 +235,54 @@ namespace DiceGame.Controllers
                 _gameOverView.OnMainMenuClicked -= HandleMainMenu;
             }
         }
+
+        private void HandlePlayerReady()
+        {
+            // Verstecke das Overlay
+            if (_passDeviceView != null) _passDeviceView.Hide();
+            
+            // Lade die Punktekarte des neuen Spielers und starte die Runde
+            RefreshUIForCurrentPlayer();
+            StartNewTurn();
+        }
+
+        private void RefreshUIForCurrentPlayer()
+        {
+            // Die Punktekarte wie gewohnt aktualisieren
+            _scoreCardView.RefreshDisplay(CurrentPlayer.ScoreCard);
+            
+            if (_currentPlayerNameText != null)
+            {
+                if (_players.Count == 1)
+                {
+                    // --- NEU: Live Highscore Check im Singleplayer ---
+                    int currentHighScore = PlayerPrefs.GetInt("HighScore", 0);
+                    int currentScore = CurrentPlayer.ScoreCard.GrandTotal;
+
+                    // Wenn der aktuelle Score den Highscore knackt (und es nicht das allererste Spiel überhaupt ist)
+                    if (currentScore > currentHighScore && currentHighScore > 0)
+                    {
+                        _currentPlayerNameText.text = $"New Record: {currentScore}!";
+                        _currentPlayerNameText.color = Color.green; // Zur Feier Grün einfärben
+                    }
+                    else
+                    {
+                        // Solange der Rekord noch nicht gebrochen wurde
+                        // (Mathf.Max sorgt dafür, dass beim allerersten Spiel nicht "High Score: 0" steht, 
+                        // sondern die Punkte live mitwachsen)
+                        int displayScore = Mathf.Max(currentHighScore, currentScore);
+                        _currentPlayerNameText.text = $"High Score: {displayScore}";
+                        _currentPlayerNameText.color = Color.yellow;
+                    }
+                }
+                else
+                {
+                    // Multiplayer: Zeige an, wer am Zug ist
+                    _currentPlayerNameText.text = $"Turn: {CurrentPlayer.Name}";
+                    _currentPlayerNameText.color = (CurrentPlayer.Name == "Bot") ? Color.red : Color.white;
+                }
+            }
+        }
+
     }
 }

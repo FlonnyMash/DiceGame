@@ -22,6 +22,7 @@ namespace DiceGame.UI.MainMenu
         [Header("Buttons - Main Menu")]
         [SerializeField] private Button _singleplayerButton;
         [SerializeField] private Button _multiplayerMenuButton;
+        [SerializeField] private TextMeshProUGUI _mainMenuHighScoreText;
 
         [Header("Buttons - Multiplayer Auswahl")]
         [SerializeField] private Button _localButton;
@@ -44,6 +45,13 @@ namespace DiceGame.UI.MainMenu
         private void Start()
         {
             _targetPosition = new Vector2(_mainMenuX, 0);
+
+            // Highscore im Main Menu laden und anzeigen
+            if (_mainMenuHighScoreText != null)
+            {
+                int highScore = PlayerPrefs.GetInt("HighScore", 0);
+                _mainMenuHighScoreText.text = $"High Score: {highScore}";
+            }
 
             // Events verknüpfen
             if (_singleplayerButton) _singleplayerButton.onClick.AddListener(StartSingleplayer);
