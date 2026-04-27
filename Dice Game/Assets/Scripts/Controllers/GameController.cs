@@ -8,6 +8,7 @@ using DiceGame.Core.Models;
 using DiceGame.Core.Rules;
 using DiceGame.UI.Views;
 using DiceGame.Core.AI;
+using DiceGame.Audio;
 
 namespace DiceGame.Controllers
 {
@@ -21,6 +22,10 @@ namespace DiceGame.Controllers
         [SerializeField] private GameOverView _gameOverView;
         [SerializeField] private TMPro.TextMeshProUGUI _currentPlayerNameText;
         [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
+
+        [Header("Audio Clips")]
+        [SerializeField] private AudioClip[] _rollDiceSounds;
+        [SerializeField] private AudioClip _scoreCategorySound;
 
         // Core Models
         private DiceCup _diceCup;
@@ -95,10 +100,19 @@ namespace DiceGame.Controllers
         {
             // 1. Buttons sperren
             _rollButton.interactable = false;
-            // Falls du die Punktekarte auch sperren willst:
-            // _scoreCardView.interactable = false; // Müsstest du in ScoreCardView bauen
+            
+            // Sound abspielen!
+            if (_rollDiceSounds != null && _rollDiceSounds.Length > 0)
+            {
+                // 1. Zufälligen Clip auswählen
+                int randomIndex = UnityEngine.Random.Range(0, _rollDiceSounds.Length);
+                AudioClip selectedClip = _rollDiceSounds[randomIndex];
 
-            float duration = 0.6f; // Dauer des Flimmerns
+                // 2. Den Clip über den AudioManager abspielen
+                DiceGame.Audio.AudioManager.Instance.PlaySFX(selectedClip);
+            }
+
+            float duration = 1.5f; // Dauer des Flimmerns
 
             // 2. Allen Würfeln sagen, sie sollen wackeln
             foreach (var dieView in _dieViews)
@@ -139,13 +153,18 @@ namespace DiceGame.Controllers
 
         private void HandleCategoryClicked(ScoreCategory category)
         {
-            // Wenn wir gerade den Zug beenden, ignorieren wir weitere Klicks (Spam-Schutz)
             if (_diceCup.RollsLeft == DiceCup.MaxRolls || _isEndingTurn) return; 
 
             int points = ScoreCalculator.CalculateScore(_diceCup.Dice, category);
 
             if (CurrentPlayer.ScoreCard.SetScore(category, points))
             {
+                // Sound abspielen
+                if (DiceGame.Audio.AudioManager.Instance != null)
+                {
+                    DiceGame.Audio.AudioManager.Instance.PlaySFX(_scoreCategorySound);
+                }
+
                 _scoreCardView.SetFinalScore(category, points);
                 _scoreCardView.ClearAllPotentials();
                 _scoreCardView.UpdateTotals(
@@ -153,26 +172,36 @@ namespace DiceGame.Controllers
                     CurrentPlayer.ScoreCard.UpperSectionBonus, 
                     CurrentPlayer.ScoreCard.GrandTotal
                 );
-                
+
                 UpdateMultiplayerScoreTracker();
 
-                // STATT CheckGameState() rufen wir jetzt unsere neue Warte-Routine auf:
-                StartCoroutine(EndTurnSequence());
+                // NEU: Wir übergeben der Coroutine, ob sie warten soll.
+                // Wir warten nur, wenn mehr als 1 Spieler dabei ist.
+                bool shouldWait = _players.Count > 1;
+                StartCoroutine(EndTurnSequence(shouldWait));
             }
         }
 
-        private System.Collections.IEnumerator EndTurnSequence()
+        private System.Collections.IEnumerator EndTurnSequence(bool wait)
         {
-            // 1. Zug-Ende markieren und Buttons sperren
             _isEndingTurn = true;
             _rollButton.interactable = false; 
 
-            // 2. Das Spiel hält für 2 Sekunden an! 
-            // In dieser Zeit sieht man die frisch eingetragenen Punkte aufleuchten.
-            yield return new WaitForSeconds(2.0f);
+            // Nur pausieren, wenn wir im Multiplayer sind
+            if (wait)
+            {
+                yield return new WaitForSeconds(2.0f);
+            }
+            else
+            {
+                // Im Singleplayer nur einen ganz kurzen Moment warten (z.B. 0.2s),
+                // damit das UI Zeit hat, die Zahlen anzuzeigen, bevor alles zurückgesetzt wird.
+                yield return new WaitForSeconds(0.2f);
+            }
 
-            // 3. Sperre aufheben und ganz normal zum nächsten Spieler wechseln
             _isEndingTurn = false;
+            _rollButton.interactable = true; // Button wieder freigeben
+            
             CheckGameState();
         }
 

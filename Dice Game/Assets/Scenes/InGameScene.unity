@@ -403,6 +403,11 @@ MonoBehaviour:
   _gameOverView: {fileID: 454061986}
   _currentPlayerNameText: {fileID: 1128682981}
   _multiplayerScoreTrackerText: {fileID: 1901329803}
+  _rollDiceSounds:
+  - {fileID: 8300000, guid: d42bbb9a206e5a141b875a53ddd535e7, type: 3}
+  - {fileID: 8300000, guid: 25ca1c73271d2e24792ead3b76ae42bb, type: 3}
+  - {fileID: 8300000, guid: e6f411a8d3cf80343ab0dbdf8a1c8708, type: 3}
+  _scoreCategorySound: {fileID: 0}
 --- !u!4 &163795531
 Transform:
   m_ObjectHideFlags: 0
