@@ -8,33 +8,128 @@ namespace DiceGame.Core.AI
 {
     public static class BotLogic
     {
-        // 1. Entscheiden, welche Würfel gehalten werden sollen
-        public static List<int> GetDiceToHold(List<Die> dice)
+        // Fix für CS7036: Diese Methode braucht jetzt zwingend die scoreCard
+        public static bool WantsToRollAgain(List<Die> dice, ScoreCard scoreCard)
+        {
+            List<int> heldIndices = GetDiceToHold(dice, scoreCard);
+            if (heldIndices.Count == 5) return false;
+            return true;
+        }
+
+        public static List<int> GetDiceToHold(List<Die> dice, ScoreCard scoreCard)
         {
             List<int> indicesToHold = new List<int>();
 
+            // 1. ANALYSE DER WÜRFEL (Gruppieren für Pasche / Full House)
             var groups = dice.GroupBy(d => d.Value)
-                             .OrderByDescending(g => g.Count())
-                             .ToList();
+                            .OrderByDescending(g => g.Count())
+                            .ThenByDescending(g => g.Key)
+                            .ToList();
 
-            // Wenn wir einen Kniffel haben (5 gleiche), alle festhalten!
-            if (groups[0].Count() == 5)
+            int bestValue = groups[0].Key;
+            int count = groups[0].Count();
+
+            // --- PRIO 1: KNIFFEL ---
+            if (count == 5 && !scoreCard.IsCategoryFilled(ScoreCategory.NicerDicer))
             {
                 return new List<int> { 0, 1, 2, 3, 4 };
             }
 
-            // Wenn wir Pärchen, Drillinge oder Vierlinge haben, behalte sie!
-            if (groups[0].Count() >= 2)
+            // --- PRIO 2: FULL HOUSE ---
+            if (groups.Count == 2 && groups[0].Count() == 3 && groups[1].Count() == 2)
             {
-                int targetValue = groups[0].Key;
-                for (int i = 0; i < dice.Count; i++)
+                if (!scoreCard.IsCategoryFilled(ScoreCategory.FullHouse))
                 {
-                    if (dice[i].Value == targetValue) indicesToHold.Add(i);
+                    return new List<int> { 0, 1, 2, 3, 4 };
                 }
+            }
+
+            // --- PRIO 3: VIERERPASCH SCHÜTZEN ---
+            // Bevor er auf Straßenjagd geht: Wenn wir 4 gleiche haben, niemals aufgeben!
+            if (count == 4 && (!scoreCard.IsCategoryFilled(ScoreCategory.FourOfAKind) || !scoreCard.IsCategoryFilled(ScoreCategory.NicerDicer) || !scoreCard.IsCategoryFilled((ScoreCategory)(bestValue - 1))))
+            {
+                for (int i = 0; i < dice.Count; i++)
+                    if (dice[i].Value == bestValue) indicesToHold.Add(i);
                 return indicesToHold;
             }
 
-            // Fallback: Keine Pärchen? Behalte wenigstens die 5en und 6en
+            // --- STRASSEN-VORBEREITUNG ---
+            var uniqueDice = dice.Select((d, index) => new { d.Value, index })
+                                .GroupBy(x => x.Value)
+                                .Select(g => g.First())
+                                .OrderBy(x => x.Value)
+                                .ToList();
+
+            bool largeStraightOpen = !scoreCard.IsCategoryFilled(ScoreCategory.LargeStraight);
+            bool smallStraightOpen = !scoreCard.IsCategoryFilled(ScoreCategory.SmallStraight);
+            
+            // Wir deklarieren die Liste hier, damit wir sie später bei Prio 6 noch nutzen können
+            List<int> bestTargetIndices = new List<int>();
+
+            // --- PRIO 4: GUTE STRASSEN (4+ Würfel) ---
+            if (largeStraightOpen || smallStraightOpen)
+            {
+                // Wir prüfen zwei mögliche Ziel-Straßen: 1-2-3-4-5 und 2-3-4-5-6
+                List<int> target1 = new List<int> { 1, 2, 3, 4, 5 };
+                List<int> target2 = new List<int> { 2, 3, 4, 5, 6 };
+
+                List<int> indicesForTarget1 = new List<int>();
+                List<int> indicesForTarget2 = new List<int>();
+
+                for (int i = 0; i < dice.Count; i++)
+                {
+                    // Wenn der Würfel in Ziel 1 passt und wir diesen Wert noch nicht markiert haben
+                    if (target1.Contains(dice[i].Value) && !indicesForTarget1.Any(idx => dice[idx].Value == dice[i].Value))
+                        indicesForTarget1.Add(i);
+
+                    // Das gleiche für Ziel 2
+                    if (target2.Contains(dice[i].Value) && !indicesForTarget2.Any(idx => dice[idx].Value == dice[i].Value))
+                        indicesForTarget2.Add(i);
+                }
+
+                // Wir entscheiden uns für das Ziel, bei dem wir schon mehr Würfel haben
+                bestTargetIndices = indicesForTarget1.Count >= indicesForTarget2.Count 
+                                            ? indicesForTarget1 
+                                            : indicesForTarget2;
+
+                // ÄNDERUNG: Wir behalten hier NUR fertige oder fast fertige Straßen (4 oder 5 Würfel)
+                if (bestTargetIndices.Count >= 4)
+                {
+                    return bestTargetIndices;
+                }
+            }
+
+            // --- PRIO 5: PAARE & DREIERPASCH FÜR BONUS ODER FULL HOUSE ---
+            ScoreCategory upperCat = (ScoreCategory)(bestValue - 1);
+            bool needsUpper = !scoreCard.IsCategoryFilled(upperCat);
+            bool needsFullHouse = !scoreCard.IsCategoryFilled(ScoreCategory.FullHouse);
+
+            // Wenn wir 3 gleiche haben und Full House oder oben noch offen ist -> Behalte die 3!
+            if (count == 3 && (needsFullHouse || needsUpper || !scoreCard.IsCategoryFilled(ScoreCategory.ThreeOfAKind)))
+            {
+                for (int i = 0; i < dice.Count; i++)
+                    if (dice[i].Value == bestValue) indicesToHold.Add(i);
+                return indicesToHold;
+            }
+
+            // Wenn wir ein Paar haben und das Feld oben noch offen ist -> Behalten!
+            if (count == 2 && needsUpper)
+            {
+                for (int i = 0; i < dice.Count; i++)
+                    if (dice[i].Value == bestValue) indicesToHold.Add(i);
+                return indicesToHold;
+            }
+
+            // --- PRIO 6: HALBE STRASSEN (3 Würfel) ---
+            // Wenn wir bis hierhin gekommen sind, gab es keine guten Paare.
+            // Jetzt ist es schlau, auf die 3er-Straße zurückzugreifen!
+            if (bestTargetIndices.Count == 3)
+            {
+                return bestTargetIndices;
+            }
+
+            // --- PRIO 7: FALLBACK (Hohe Zahlen) ---
+            // Wenn wir keine Paare, keine Straßen und keine Kniffel in Sicht haben:
             for (int i = 0; i < dice.Count; i++)
             {
                 if (dice[i].Value >= 5) indicesToHold.Add(i);
@@ -43,58 +138,74 @@ namespace DiceGame.Core.AI
             return indicesToHold;
         }
 
-        // 2. Entscheiden, welche Kategorie am Ende angeklickt wird
         public static ScoreCategory ChooseBestCategory(ScoreCard scoreCard, List<Die> dice)
         {
-            // --- PRIO 1: DIE FESTEN, HOHEN WERTE SICHERN ---
-            
-            if (!scoreCard.IsCategoryFilled(ScoreCategory.NicerDicer) && ScoreCalculator.CalculateScore(dice, ScoreCategory.NicerDicer) == 50)
-                return ScoreCategory.NicerDicer;
+            ScoreCategory bestCategory = ScoreCategory.Ones;
+            float maxWeight = -1000f;
 
-            if (!scoreCard.IsCategoryFilled(ScoreCategory.LargeStraight) && ScoreCalculator.CalculateScore(dice, ScoreCategory.LargeStraight) == 40)
-                return ScoreCategory.LargeStraight;
-
-            if (!scoreCard.IsCategoryFilled(ScoreCategory.SmallStraight) && ScoreCalculator.CalculateScore(dice, ScoreCategory.SmallStraight) == 30)
-                return ScoreCategory.SmallStraight;
-
-            if (!scoreCard.IsCategoryFilled(ScoreCategory.FullHouse) && ScoreCalculator.CalculateScore(dice, ScoreCategory.FullHouse) == 25)
-                return ScoreCategory.FullHouse;
-
-            // --- PRIO 2: NORMALE PUNKTE (Mit leichtem Bonus für die obere Sektion) ---
-            
-            ScoreCategory bestCategory = ScoreCategory.Ones; // Fallback
-            int maxScore = -1;
-
-            foreach (ScoreCategory category in Enum.GetValues(typeof(ScoreCategory)))
+            foreach (ScoreCategory cat in Enum.GetValues(typeof(ScoreCategory)))
             {
-                if (!scoreCard.IsCategoryFilled(category))
+                if (scoreCard.IsCategoryFilled(cat)) continue;
+
+                int actualScore = ScoreCalculator.CalculateScore(dice, cat);
+                float currentWeight = actualScore;
+
+                // --- STRATEGIE-GEWICHTUNG ---
+
+                // A) Bonus-Gier: Felder oben (1-6) sind viel mehr wert als sie anzeigen
+                if (cat <= ScoreCategory.Sixes)
                 {
-                    int score = ScoreCalculator.CalculateScore(dice, category);
-                    int weight = 0;
-
-                    // Wenn wir hier Punkte machen können, bevorzugen wir die oberen Felder für den 63er-Bonus
-                    if (score > 0 && category >= ScoreCategory.Ones && category <= ScoreCategory.Sixes)
-                    {
-                        weight = 2; // Virtueller Bonus für die Entscheidung
-                    }
-
-                    if (score + weight > maxScore)
-                    {
-                        maxScore = score + weight;
-                        bestCategory = category;
-                    }
+                    // Wir geben einen Bonus, weil diese Felder zum 35-Punkte-Bonus beitragen
+                    // Besonders 4er, 5er und 6er sind extrem wichtig.
+                    currentWeight += actualScore * 0.8f; 
+                    
+                    // Wenn man 3 oder mehr von einer Zahl hat, priorisieren wir das massiv
+                    if (actualScore >= (int)(cat + 1) * 3) currentWeight += 20;
                 }
-            }
 
-            // --- PRIO 3: SCHADENSBEGRENZUNG (Streichen) ---
-            // Wenn der Bot absolut keinen einzigen Punkt machen kann (maxScore == 0)
-            if (maxScore == 0)
-            {
-                // Streiche lieber die schweren Dinge weg als die wichtigen Zahlen
-                if (!scoreCard.IsCategoryFilled(ScoreCategory.NicerDicer)) return ScoreCategory.NicerDicer;
-                if (!scoreCard.IsCategoryFilled(ScoreCategory.LargeStraight)) return ScoreCategory.LargeStraight;
-                if (!scoreCard.IsCategoryFilled(ScoreCategory.Ones)) return ScoreCategory.Ones; // 1er opfern ist oft okay
-                if (!scoreCard.IsCategoryFilled(ScoreCategory.Twos)) return ScoreCategory.Twos; 
+                // B) Chance-Schutz: Benutze die Chance niemals für wenig Punkte!
+                if (cat == ScoreCategory.Chance)
+                {
+                    if (actualScore < 20) currentWeight -= 50; 
+                    else currentWeight += 5; 
+                }
+
+                // --- NEU: PASCH-OPPORTUNISMUS ---
+                // Ein hoher Viererpasch ist selten und sollte genutzt werden, wenn er sich anbietet!
+                if (cat == ScoreCategory.FourOfAKind)
+                {
+                    // Ein 4er-Pasch ab 22 Punkten (z.B. vier 5er + 2, oder vier 6er) ist fantastisch.
+                    if (actualScore >= 22) currentWeight += 25f; // Extra-Gewicht, um die Bonus-Gier auszustechen!
+                }
+                // Auch ein extrem guter Dreierpasch (z.B. drei 6er + 5 + 4 = 27 Punkte) ist oft unten besser aufgehoben
+                else if (cat == ScoreCategory.ThreeOfAKind)
+                {
+                    if (actualScore >= 24) currentWeight += 15f;
+                }
+
+                // C) Opfer-Logik (Wenn fast nichts gewürfelt wurde)
+                if (actualScore == 0)
+                {
+                    // Wenn wir streichen MÜSSEN:
+                    // 1er und 2er zu streichen ist okay (-10 Strafe)
+                    // Kniffel oder Straßen zu streichen ist fatal (-100 Strafe)
+                    if (cat == ScoreCategory.Ones) currentWeight = -10;
+                    else if (cat == ScoreCategory.Twos) currentWeight = -15;
+                    else if (cat == ScoreCategory.NicerDicer) currentWeight = -200;
+                    else currentWeight -= 50;
+                }
+                else if (actualScore < 5 && (cat == ScoreCategory.Ones || cat == ScoreCategory.Twos))
+                {
+                    // Wenn wir nur einen 1er haben, ist es oft besser, den da einzutragen
+                    // als eine Chance mit 7 Punkten zu verschwenden.
+                    currentWeight += 15; 
+                }
+
+                if (currentWeight > maxWeight)
+                {
+                    maxWeight = currentWeight;
+                    bestCategory = cat;
+                }
             }
 
             return bestCategory;

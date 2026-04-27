@@ -20,6 +20,7 @@ namespace DiceGame.Controllers
         [SerializeField] private List<DieView> _dieViews;
         [SerializeField] private Button _rollButton;
         [SerializeField] private ScoreCardView _scoreCardView;
+        [SerializeField] private CanvasGroup _scoreCardCanvasGroup;
         [SerializeField] private GameOverView _gameOverView;
         [SerializeField] private TMPro.TextMeshProUGUI _currentPlayerNameText;
         [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
@@ -31,13 +32,17 @@ namespace DiceGame.Controllers
         [SerializeField] private AudioClip[] _rollDiceSounds;
         [SerializeField] private AudioClip _scoreCategorySound;
 
+        
         // Core Models
+        public List<DieView> DieViews => _dieViews;
         private DiceCup _diceCup;
+        public DiceCup DiceCup => _diceCup;
         private List<Player> _players = new List<Player>();
         private int _currentPlayerIndex = 0;
         private bool _isEndingTurn = false;
 
-        private Player CurrentPlayer => _players[_currentPlayerIndex];
+        public Player CurrentPlayer => _players[_currentPlayerIndex];
+        public event System.Action OnTurnStarted;
 
         private void Start()
         {
@@ -87,9 +92,18 @@ namespace DiceGame.Controllers
             _scoreCardView.Initialize(); 
             RefreshUIForCurrentPlayer();
             StartNewTurn();
+            // Prüfen, ob überhaupt ein Bot mitspielt
+            bool botIsPresent = names.Contains("Bot");
+            
+            // BotController finden und nur aktivieren, wenn nötig
+            var botCtrl = Object.FindAnyObjectByType<BotController>(FindObjectsInactive.Include);
+            if (botCtrl != null)
+            {
+                botCtrl.gameObject.SetActive(botIsPresent);
+            }
         }
 
-        private void OnRollButtonClicked()
+        public void OnRollButtonClicked()
         {
             // Erst normal würfeln (Daten ändern sich im Hintergrund sofort)
             bool success = _diceCup.Roll();
@@ -105,28 +119,24 @@ namespace DiceGame.Controllers
             // 1. Buttons sperren
             _rollButton.interactable = false;
             
-            // Sound abspielen!
-            if (_rollDiceSounds != null && _rollDiceSounds.Length > 0)
-            {
-                // 1. Zufälligen Clip auswählen
-                int randomIndex = UnityEngine.Random.Range(0, _rollDiceSounds.Length);
-                AudioClip selectedClip = _rollDiceSounds[randomIndex];
+            // NEU: Wir prüfen, ob ALLE Würfel im Becher gehalten werden
+            bool allDiceHeld = _diceCup.Dice.All(die => die.IsHeld);
 
-                // 2. Den Clip über den AudioManager abspielen
-                DiceGame.Audio.AudioManager.Instance.PlaySFX(selectedClip);
+            // Sound NUR abspielen, wenn NICHT alle gehalten werden!
+            if (!allDiceHeld)
+            {
+                if (_rollDiceSounds != null && _rollDiceSounds.Length > 0)
+                {
+                    int randomIndex = UnityEngine.Random.Range(0, _rollDiceSounds.Length);
+                    AudioClip selectedClip = _rollDiceSounds[randomIndex];
+                    DiceGame.Audio.AudioManager.Instance.PlaySFX(selectedClip);
+                }
             }
 
-            float duration = 1.5f; // Dauer des Flimmerns
+            // Deine eingestellte Dauer von 1.5 Sekunden
+            float duration = 1.5f; 
 
-            // 2. Allen Würfeln sagen, sie sollen wackeln
-            foreach (var dieView in _dieViews)
-            {
-                // Wir holen uns den echten Endwert aus der DiceCup Logik, 
-                // aber das wissen wir hier im Controller nicht direkt pro Index. 
-                // Einfacher ist es, die Daten im DiceCup abzufragen:
-            }
-            
-            // Korrektur für die Schleife (damit wir den Index haben):
+            // 2. Allen Würfeln sagen, sie sollen wackeln (mit Index-Schleife)
             for (int i = 0; i < _diceCup.Dice.Count; i++)
             {
                 // Wir übergeben den finalen Wert, damit der Würfel weiß, wo er stoppen muss.
@@ -134,7 +144,7 @@ namespace DiceGame.Controllers
                 _dieViews[i].AnimateRoll(_diceCup.Dice[i].Value, duration);
             }
 
-            // 3. Der Controller wartet 0.6 Sekunden
+            // 3. Der Controller wartet auf die Animation
             yield return new WaitForSeconds(duration);
 
             // 4. Animation fertig -> Punkte berechnen und Buttons freigeben
@@ -144,7 +154,6 @@ namespace DiceGame.Controllers
             {
                 _rollButton.interactable = true;
             }
-            // _scoreCardView.interactable = true;
         }
 
         private void HandleDieClicked(int dieIndex)
@@ -155,7 +164,7 @@ namespace DiceGame.Controllers
             }
         }
 
-        private void HandleCategoryClicked(ScoreCategory category)
+        public void HandleCategoryClicked(ScoreCategory category)
         {
             if (_diceCup.RollsLeft == DiceCup.MaxRolls || _isEndingTurn) return; 
 
@@ -239,6 +248,7 @@ namespace DiceGame.Controllers
                 {
                     // Wenn ein Bot im Spiel ist oder es Singleplayer ist, 
                     // geht es sofort ohne Overlay weiter.
+                    SetUIInteractable(CurrentPlayer.Name != "Bot");
                     HandlePlayerReady();
                 }
             }
@@ -260,19 +270,18 @@ namespace DiceGame.Controllers
         {
             _diceCup.ResetTurn();
             _scoreCardView.ClearAllPotentials(); 
-
             UpdateMultiplayerScoreTracker();
-            
-            // NEU: Bot-Weiche
-            if (CurrentPlayer.Name == "Bot")
+            RefreshUIForCurrentPlayer(); // Wichtig, damit das UI den Namen anzeigt
+
+            // Zuerst machen wir den Button für ALLE aus (Sicherheit)
+            _rollButton.interactable = false;
+
+            // Wir informieren alle (den Bot), dass ein neuer Zug beginnt
+            OnTurnStarted?.Invoke();
+
+            // Wenn es KEIN Bot ist, schalten wir den Button wieder ein
+            if (CurrentPlayer.Name != "Bot")
             {
-                // Bot ist dran: UI sperren und Bot-Routine starten
-                _rollButton.interactable = false;
-                StartCoroutine(RunBotTurn());
-            }
-            else
-            {
-                // Mensch ist dran: Button freigeben
                 _rollButton.interactable = true;
             }
         }
@@ -364,50 +373,6 @@ namespace DiceGame.Controllers
             }
         }
 
-        private System.Collections.IEnumerator RunBotTurn()
-        {
-            // Der Bot würfelt 2 bis 3 Mal (damit es nicht immer vorhersehbar ist)
-            int rollsToDo = UnityEngine.Random.Range(2, 4);
-
-            for (int r = 0; r < rollsToDo; r++)
-            {
-                // 1. Kurze Denkpause vor dem Würfeln
-                yield return new WaitForSeconds(1.0f);
-
-                // 2. Bot würfelt (nutzt unsere bestehende Würfel-Logik & Animation!)
-                _diceCup.Roll();
-                yield return StartCoroutine(HandleRollAnimation());
-
-                // 3. Wenn es nicht der letzte Wurf ist, entscheidet der Bot, was er behält
-                if (r < rollsToDo - 1)
-                {
-                    yield return new WaitForSeconds(0.8f); // Bot schaut sich die Würfel an
-                    
-                    List<int> diceToHold = BotLogic.GetDiceToHold(_diceCup.Dice);
-                    
-                    // Jeden ausgewählten Würfel einzeln antippen (mit kurzer Verzögerung wie ein Mensch)
-                    foreach (int index in diceToHold)
-                    {
-                        if (!_diceCup.Dice[index].IsHeld)
-                        {
-                            _diceCup.Dice[index].ToggleHold();
-                            _dieViews[index].UpdateView(_diceCup.Dice[index].Value, true);
-                            yield return new WaitForSeconds(0.3f);
-                        }
-                    }
-                }
-            }
-
-            // 4. Letzte Denkpause, bevor er die Punkte einträgt
-            yield return new WaitForSeconds(1.2f);
-
-            // 5. Bot fragt sein Gehirn nach der besten Kategorie
-            ScoreCategory chosenCategory = BotLogic.ChooseBestCategory(CurrentPlayer.ScoreCard, _diceCup.Dice);
-            
-            // 6. Bot simuliert den Klick auf die Kategorie!
-            HandleCategoryClicked(chosenCategory); 
-        }
-
         private void UpdateMultiplayerScoreTracker()
         {
             // Wenn das Textfeld nicht verknüpft ist oder wir im reinen Singleplayer sind, 
@@ -468,6 +433,23 @@ namespace DiceGame.Controllers
             // Lade die Main Menu Szene. 
             // ACHTUNG: Der Name hier muss EXAKT so lauten wie deine Szene im Projekt!
             SceneManager.LoadScene("MainMenuScene"); 
+        }
+
+        // Diese Methode schaltet die Interaktion der Buttons an oder aus
+        public void SetUIInteractable(bool isInteractable)
+        {
+            // 1. Roll-Button sperren
+            if (_rollButton != null)
+            {
+                _rollButton.interactable = isInteractable;
+            }
+
+            // 2. Komplettes Scoreboard sperren (Klicks gehen nicht mehr durch)
+            if (_scoreCardCanvasGroup != null)
+            {
+                _scoreCardCanvasGroup.interactable = isInteractable;
+                _scoreCardCanvasGroup.blocksRaycasts = isInteractable;
+            }
         }
 
     }

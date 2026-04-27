@@ -5,7 +5,7 @@ namespace DiceGame.Core.Models
     public class Die
     {
         public int Value { get; private set; }
-        public bool IsHeld { get; private set; }
+        public bool IsHeld { get; set; }
 
         // C#-Events benachrichtigen später die UI, ohne dass der Core die UI kennen muss.
         public event Action<Die> OnStateChanged;

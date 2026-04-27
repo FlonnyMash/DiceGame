@@ -171,9 +171,10 @@ namespace DiceGame.UI.MainMenu
             }
         }
 
-        private void StartSingleplayer()
+        public void StartSingleplayer()
         {
-            GameSettings.PlayerNames = new List<string> { "Player 1", "Bot" };
+            // Damit wird die Liste geleert und NUR "Player 1" reingeschrieben
+            GameSettings.PlayerNames = new List<string> { "Player 1" }; 
             SceneManager.LoadScene("InGameScene");
         }
 

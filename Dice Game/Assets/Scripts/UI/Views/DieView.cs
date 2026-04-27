@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI; 
 using UnityEngine.EventSystems;
 using System;
-using System.Collections; // Wichtig für die Animation
+using System.Collections;
 
 namespace DiceGame.UI.Views
 {
@@ -14,12 +14,11 @@ namespace DiceGame.UI.Views
         [Header("Dice Faces (1 to 6)")]
         [SerializeField] private Sprite[] _diceFaces; 
 
-        // Fix Fehler 2: Wir senden jetzt wieder einen 'int' (den Index) beim Klicken
         public event Action<int> OnDieClicked; 
 
         private int _dieIndex;
+        private bool _isHeld; // Unser "Gedächtnis"
 
-        // Fix Fehler 1: Die fehlende Initialize Methode
         public void Initialize(int index)
         {
             _dieIndex = index;
@@ -27,13 +26,16 @@ namespace DiceGame.UI.Views
 
         public void UpdateView(int value, bool isHeld)
         {
+            // Wir merken uns sofort, ob der Würfel gehalten wird
+            _isHeld = isHeld; 
+
             // Das richtige Bild setzen
             if (value >= 1 && value <= 6 && _diceFaces.Length == 6)
             {
                 _dieImage.sprite = _diceFaces[value - 1];
             }
 
-            // Den "Gehalten"-Status anzeigen
+            // Den "Gehalten"-Status (den Rahmen) anzeigen
             if (_heldHighlight != null)
             {
                 _heldHighlight.SetActive(isHeld);
@@ -42,13 +44,18 @@ namespace DiceGame.UI.Views
 
         public void OnPointerClick(PointerEventData eventData)
         {
-            // Sende den Index an den GameController
+            // Dem Controller sagen, welcher Würfel geklickt wurde
             OnDieClicked?.Invoke(_dieIndex);
         }
 
-// Wir fordern jetzt beide Werte an: den finalen Wert und die Dauer
         public void AnimateRoll(int finalValue, float duration)
         {
+            // Türsteher: Wenn der Würfel gehalten wird, brechen wir hier sofort ab!
+            if (_isHeld) 
+            {
+                return; 
+            }
+
             StartCoroutine(RollAnimationRoutine(finalValue, duration));
         }
 
@@ -69,7 +76,7 @@ namespace DiceGame.UI.Views
                 elapsed += 0.05f;
             }
 
-            // 2. Das große Finale: Den echten, erwürfelten Wert anzeigen!
+            // 2. Das große Finale: Den echten Wert anzeigen
             if (finalValue >= 1 && finalValue <= 6 && _diceFaces.Length == 6)
             {
                 _dieImage.sprite = _diceFaces[finalValue - 1];
