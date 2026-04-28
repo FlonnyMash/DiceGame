@@ -49,7 +49,7 @@ namespace DiceGame.Controllers
         {
             _diceCup = new DiceCup();
             
-            SetupGame(GameSettings.PlayerNames);
+            SetupGame(MatchData.PlayerNames);
 
             // Würfel-Events verbinden
             for (int i = 0; i < _dieViews.Count; i++)
@@ -153,8 +153,6 @@ namespace DiceGame.Controllers
             // 3. Der Controller wartet auf die Animation
             yield return new WaitForSeconds(duration);
 
-            // 4. Animation fertig -> Punkte berechnen und Buttons freigeben
-            UpdatePotentialScores();
             
             // Nur freigeben, wenn noch Würfe übrig sind UND ein Mensch spielt
             if (_diceCup.RollsLeft > 0 && CurrentPlayer.Name != "Bot")
@@ -170,6 +168,10 @@ namespace DiceGame.Controllers
                     _diceCanvasGroup.blocksRaycasts = true;
                 }
             }
+
+            // 4. Animation fertig -> Punkte berechnen und Buttons freigeben
+            UpdatePotentialScores();
+
         }
 
         private void HandleDieClicked(int dieIndex)

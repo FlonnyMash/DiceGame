@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -24,7 +22,9 @@ namespace DiceGame.UI.MainMenu
         [Header("Buttons - Main Menu")]
         [SerializeField] private Button _singleplayerButton;
         [SerializeField] private Button _multiplayerMenuButton;
+        [SerializeField] private Button _settingsButton;
         [SerializeField] private TextMeshProUGUI _mainMenuHighScoreText;
+        [SerializeField] private Button _backFromSettingsButton;
 
         [Header("Buttons - Multiplayer Auswahl")]
         [SerializeField] private Button _localButton;
@@ -40,9 +40,9 @@ namespace DiceGame.UI.MainMenu
         [SerializeField] private Button _startGameButton;
         [SerializeField] private Button _backToTypeMenuButton;
 
-        [Header("Animation Settings")]
-        [SerializeField, Tooltip("Wie lange soll gewartet werden, damit man das Pressed-Image sieht?")] 
-        private float _buttonPressDelay = 0.15f;
+        [Header("UI Panels")]
+        [SerializeField] private GameObject _settingsPanel;
+        [SerializeField] private GameObject _mainMenuPanel;
 
         private int _currentPlayerCount = 1; 
         private const int MIN_PLAYERS = 1;
@@ -58,18 +58,26 @@ namespace DiceGame.UI.MainMenu
                 _mainMenuHighScoreText.text = $"High Score: {highScore}";
             }
 
-            // Events über die neue Wait-Coroutine verknüpfen
-            if (_singleplayerButton) _singleplayerButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_singleplayerButton, StartSingleplayer)));
-            if (_multiplayerMenuButton) _multiplayerMenuButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_multiplayerMenuButton, () => MoveTo(_multiplayerTypeMenuX))));
+            // Stelle sicher, dass beim Start nur das MainMenu aktiv ist
+            _settingsPanel.SetActive(false); 
+            _mainMenuPanel.SetActive(true);
             
-            if (_localButton) _localButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_localButton, () => MoveTo(_localSetupMenuX))));
-            if (_backToMainButton) _backToMainButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_backToMainButton, () => MoveTo(_mainMenuX))));
+            // --- Events simpel und direkt verknüpfen ---
+            if (_singleplayerButton) _singleplayerButton.onClick.AddListener(StartSingleplayer);
+            if (_multiplayerMenuButton) _multiplayerMenuButton.onClick.AddListener(() => MoveTo(_multiplayerTypeMenuX));
             
-            if (_startGameButton) _startGameButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_startGameButton, StartLocalMultiplayer)));
-            if (_backToTypeMenuButton) _backToTypeMenuButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_backToTypeMenuButton, () => MoveTo(_multiplayerTypeMenuX))));
+            // Settings Logik
+            if (_settingsButton) _settingsButton.onClick.AddListener(OpenSettings);
+            if (_backFromSettingsButton) _backFromSettingsButton.onClick.AddListener(CloseSettings);
+
+            if (_localButton) _localButton.onClick.AddListener(() => MoveTo(_localSetupMenuX));
+            if (_backToMainButton) _backToMainButton.onClick.AddListener(() => MoveTo(_mainMenuX));
             
-            if (_addPlayerButton) _addPlayerButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_addPlayerButton, AddPlayer)));
-            if (_removePlayerButton) _removePlayerButton.onClick.AddListener(() => StartCoroutine(WaitAndExecute(_removePlayerButton, RemovePlayer)));
+            if (_startGameButton) _startGameButton.onClick.AddListener(StartLocalMultiplayer);
+            if (_backToTypeMenuButton) _backToTypeMenuButton.onClick.AddListener(() => MoveTo(_multiplayerTypeMenuX));
+            
+            if (_addPlayerButton) _addPlayerButton.onClick.AddListener(AddPlayer);
+            if (_removePlayerButton) _removePlayerButton.onClick.AddListener(RemovePlayer);
 
             foreach (var input in _playerNameInputs)
             {
@@ -91,29 +99,26 @@ namespace DiceGame.UI.MainMenu
             }
         }
 
-        /// <summary>
-        /// Gibt der im Unity-Editor eingestellten Button-Animation Zeit abzuspielen,
-        /// bevor die eigentliche Logik ausgeführt wird.
-        /// </summary>
-        private IEnumerator WaitAndExecute(Button button, Action actionToExecute)
+        // --- UI Methoden ---
+
+        private void OpenSettings()
         {
-            // Verhindert, dass der Spieler mehrmals auf den Button hämmert
-            button.interactable = false;
+            _mainMenuPanel.SetActive(false);
+            _settingsPanel.SetActive(true);
+        }
 
-            // Warte die eingestellte Zeit, damit das Pressed-Image in Ruhe angezeigt wird
-            yield return new WaitForSeconds(_buttonPressDelay);
-
-            // Re-aktiviere den Button
-            button.interactable = true;
-
-            // Führe den Screenwechsel / die Aktion aus
-            actionToExecute?.Invoke();
+        private void CloseSettings()
+        {
+            _settingsPanel.SetActive(false);
+            _mainMenuPanel.SetActive(true);
         }
 
         private void MoveTo(float targetX)
         {
             _targetPosition = new Vector2(targetX, _panelsContainer.anchoredPosition.y);
         }
+
+        // --- Logik Methoden ---
 
         private void AddPlayer()
         {
@@ -173,8 +178,7 @@ namespace DiceGame.UI.MainMenu
 
         public void StartSingleplayer()
         {
-            // Damit wird die Liste geleert und NUR "Player 1" reingeschrieben
-            GameSettings.PlayerNames = new List<string> { "Player 1" }; 
+            MatchData.PlayerNames = new List<string> { "Player 1" }; 
             SceneManager.LoadScene("InGameScene");
         }
 
@@ -188,7 +192,7 @@ namespace DiceGame.UI.MainMenu
 
             if (_currentPlayerCount == 1) names.Add("Bot");
 
-            GameSettings.PlayerNames = names;
+            MatchData.PlayerNames = names;
             SceneManager.LoadScene("InGameScene");
         }
     }

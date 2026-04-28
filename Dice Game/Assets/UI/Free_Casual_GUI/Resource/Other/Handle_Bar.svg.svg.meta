@@ -15,7 +15,7 @@ ScriptedImporter:
   assetBundleName: 
   assetBundleVariant: 
   script: {fileID: 12408, guid: 0000000000000000e000000000000000, type: 0}
-  svgType: 1
+  svgType: 4
   texturedSpriteMeshType: 0
   svgPixelsPerUnit: 100
   gradientResolution: 64
@@ -46,7 +46,7 @@ ScriptedImporter:
   useSVGPixelsPerUnit: 0
   spriteData:
     TessellationDetail: 0
-    SpriteName: Handle_Bar.svg
+    SpriteName: Handle_Bar.svgSprite
     SpritePivot: {x: 0.5, y: 0.5}
     SpriteAlignment: 0
     SpriteBorder: {x: 0, y: 0, z: 0, w: 0}
@@ -54,7 +54,7 @@ ScriptedImporter:
       serializedVersion: 2
       x: 0
       y: 0
-      width: 256
-      height: 20
+      width: 744
+      height: 58.999996
     SpriteID: 045f2a0398373ec4781e3266de68b708
     PhysicsOutlines: []
