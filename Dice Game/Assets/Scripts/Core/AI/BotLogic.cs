@@ -128,13 +128,28 @@ namespace DiceGame.Core.AI
                 return bestTargetIndices;
             }
 
-            // --- PRIO 7: FALLBACK (Hohe Zahlen) ---
+            // --- PRIO 7: FALLBACK (Der "Alles Rerollen"-Check) ---
             // Wenn wir keine Paare, keine Straßen und keine Kniffel in Sicht haben:
+            
+            bool chanceOpen = !scoreCard.IsCategoryFilled(ScoreCategory.Chance);
+
             for (int i = 0; i < dice.Count; i++)
             {
-                if (dice[i].Value >= 5) indicesToHold.Add(i);
+                int val = dice[i].Value;
+                ScoreCategory upperCatForVal = (ScoreCategory)(val - 1);
+                
+                // Wir behalten eine hohe Zahl (5 oder 6) NUR dann, wenn:
+                // 1. Das dazugehörige Feld oben noch offen ist ODER
+                // 2. Die Chance noch offen ist (dann sammeln wir einfach Punkte)
+                if (val >= 5 && (!scoreCard.IsCategoryFilled(upperCatForVal) || chanceOpen))
+                {
+                    indicesToHold.Add(i);
+                }
             }
 
+            // Wenn indicesToHold an dieser Stelle LEER ist (0 Elemente), 
+            // gibt die Methode eine leere Liste zurück. 
+            // Das signalisiert deinem BotController automatisch: "Behalte NICHTS, würfle alles neu!"
             return indicesToHold;
         }
 
@@ -152,15 +167,35 @@ namespace DiceGame.Core.AI
 
                 // --- STRATEGIE-GEWICHTUNG ---
 
-                // A) Bonus-Gier: Felder oben (1-6) sind viel mehr wert als sie anzeigen
+                // A) Bonus-Gier & Pace (Ziel-System): Felder oben (1-6)
                 if (cat <= ScoreCategory.Sixes)
                 {
-                    // Wir geben einen Bonus, weil diese Felder zum 35-Punkte-Bonus beitragen
-                    // Besonders 4er, 5er und 6er sind extrem wichtig.
-                    currentWeight += actualScore * 0.8f; 
-                    
-                    // Wenn man 3 oder mehr von einer Zahl hat, priorisieren wir das massiv
-                    if (actualScore >= (int)(cat + 1) * 3) currentWeight += 20;
+                    int faceValue = (int)cat + 1; 
+                    int targetScore = faceValue * 3; // Das Soll-Ziel (z.B. 3 * 6 = 18 Punkte)
+
+                    if (actualScore >= targetScore)
+                    {
+                        // Ziel erreicht oder übertroffen (3 oder mehr Würfel)!
+                        // Gibt Extra-Gewicht für das Polster UND den fetten +20 Bonus von deiner alten Logik
+                        currentWeight += (actualScore - targetScore) * 1.5f; 
+                        currentWeight += 20; 
+                    }
+                    else
+                    {
+                        // Ziel verfehlt! Wir hinken dem Bonus hinterher.
+                        int deficit = targetScore - actualScore;
+
+                        if (faceValue >= 4)
+                        {
+                            // 4er, 5er und 6er sind HEILIG! Harte Strafe, wenn wir hier zu wenig eintragen (z.B. nur zwei 6er).
+                            currentWeight -= deficit * 4f; 
+                        }
+                        else
+                        {
+                            // Bei 1ern, 2ern und 3ern ist das Opfern oder Untererfüllen okay.
+                            currentWeight -= deficit * 1f;
+                        }
+                    }
                 }
 
                 // B) Chance-Schutz: Benutze die Chance niemals für wenig Punkte!

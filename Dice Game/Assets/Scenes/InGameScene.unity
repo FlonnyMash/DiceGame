@@ -446,6 +446,7 @@ GameObject:
   m_Component:
   - component: {fileID: 127020341}
   - component: {fileID: 127020342}
+  - component: {fileID: 127020343}
   m_Layer: 5
   m_Name: DiceContainer
   m_TagString: Untagged
@@ -503,6 +504,18 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!225 &127020343
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 127020340}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &163795529
 GameObject:
   m_ObjectHideFlags: 0
@@ -539,6 +552,7 @@ MonoBehaviour:
   - {fileID: 101896282}
   - {fileID: 433553211}
   - {fileID: 232064276}
+  _diceCanvasGroup: {fileID: 127020343}
   _rollButton: {fileID: 1243301895}
   _scoreCardView: {fileID: 1247237408}
   _scoreCardCanvasGroup: {fileID: 1247237414}

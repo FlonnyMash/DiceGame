@@ -18,6 +18,7 @@ namespace DiceGame.Controllers
         [Header("UI References")]
         [SerializeField] private PassDeviceView _passDeviceView;
         [SerializeField] private List<DieView> _dieViews;
+        [SerializeField] private CanvasGroup _diceCanvasGroup;
         [SerializeField] private Button _rollButton;
         [SerializeField] private ScoreCardView _scoreCardView;
         [SerializeField] private CanvasGroup _scoreCardCanvasGroup;
@@ -115,7 +116,12 @@ namespace DiceGame.Controllers
         }
 
         private IEnumerator HandleRollAnimation()
-        {
+        { 
+            if (_diceCanvasGroup != null)
+            {
+                _diceCanvasGroup.blocksRaycasts = false; // Maus geht einfach durch
+            }
+            
             // 1. Buttons sperren
             _rollButton.interactable = false;
             
@@ -150,14 +156,29 @@ namespace DiceGame.Controllers
             // 4. Animation fertig -> Punkte berechnen und Buttons freigeben
             UpdatePotentialScores();
             
-            if (_diceCup.RollsLeft > 0)
+            // Nur freigeben, wenn noch Würfe übrig sind UND ein Mensch spielt
+            if (_diceCup.RollsLeft > 0 && CurrentPlayer.Name != "Bot")
             {
                 _rollButton.interactable = true;
+            }
+
+            if (_diceCanvasGroup != null)
+            {
+                // WICHTIG: Nur entsperren, wenn ein Mensch dran ist!
+                if (CurrentPlayer.Name != "Bot")
+                {
+                    _diceCanvasGroup.blocksRaycasts = true;
+                }
             }
         }
 
         private void HandleDieClicked(int dieIndex)
         {
+            // Der Türsteher: Wenn der Bot dran ist, wird jeder Klick sofort blockiert!
+            if (CurrentPlayer.Name == "Bot") return;
+            
+            if (CurrentPlayer.Name == "Bot") return;
+            
             if (_diceCup.RollsLeft < DiceCup.MaxRolls)
             {
                 _diceCup.Dice[dieIndex].ToggleHold();
@@ -213,8 +234,13 @@ namespace DiceGame.Controllers
             }
 
             _isEndingTurn = false;
-            _rollButton.interactable = true; // Button wieder freigeben
-            
+
+            // Button nur freigeben, wenn der aktuelle (oder nächste) Spieler kein Bot ist
+            if (CurrentPlayer.Name != "Bot")
+            {
+                _rollButton.interactable = true; 
+            }
+                        
             CheckGameState();
         }
 
