@@ -1,4 +1,7 @@
 using UnityEngine;
+using DiceGame.Core.Models;
+using DiceGame.Services.Interfaces;
+using DiceGame.Services;
 
 namespace DiceGame.Audio
 {
@@ -7,23 +10,19 @@ namespace DiceGame.Audio
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void InitializeOnStartup()
         {
-            // Das triggert die Instance-Logik und erstellt den Manager sofort
             var trigger = Instance;
         }
         
         private static AudioManager _instance;
 
-        // Das ist das "Tor" zum Manager
         public static AudioManager Instance
         {
             get
             {
                 if (_instance == null)
                 {
-                    // 1. Schauen, ob er schon in der Szene ist
                     _instance = Object.FindAnyObjectByType<AudioManager>();
 
-                    // 2. Wenn nicht, aus dem Resources-Ordner laden
                     if (_instance == null)
                     {
                         GameObject prefab = Resources.Load<GameObject>("AudioManager");
@@ -32,10 +31,6 @@ namespace DiceGame.Audio
                             GameObject go = Instantiate(prefab);
                             _instance = go.GetComponent<AudioManager>();
                             _instance.name = "AudioManager (Auto-Generated)";
-                        }
-                        else
-                        {
-                            Debug.LogError("AudioManager-Prefab nicht im 'Resources' Ordner gefunden!");
                         }
                     }
                 }
@@ -47,9 +42,10 @@ namespace DiceGame.Audio
         [SerializeField] private AudioSource _musicSource;
         [SerializeField] private AudioSource _sfxSource;
 
+        private ISettingsService _settingsService;
+
         private void Awake()
         {
-            // Singleton-Sicherung
             if (_instance == null)
             {
                 _instance = this;
@@ -61,18 +57,48 @@ namespace DiceGame.Audio
             }
         }
 
+        private void Start()
+        {
+            _settingsService = PlayerPrefsSettingsService.Instance;
+
+            ApplyAudioSettings(_settingsService.LoadSettings());
+            _settingsService.OnSettingsChanged += ApplyAudioSettings;
+        }
+
+        private void OnDestroy()
+        {
+            if (_settingsService != null)
+            {
+                _settingsService.OnSettingsChanged -= ApplyAudioSettings;
+            }
+        }
+
+        private void ApplyAudioSettings(AppSettings settings)
+        {
+            // Die "Mute"-Eigenschaft schaltet den Ton komplett aus (true) oder an (false)
+            if (_musicSource != null)
+            {
+                _musicSource.mute = !settings.IsMusicOn; 
+            }
+
+            if (_sfxSource != null)
+            {
+                _sfxSource.mute = !settings.IsSfxOn;
+            }
+        }
+
         public void PlaySFX(AudioClip clip, bool randomizePitch = false)
         {
-            if (clip != null && _sfxSource != null)
+            // Wenn SFX ausgestellt ist, spielen wir gar nicht erst ab
+            if (clip != null && _sfxSource != null && !_sfxSource.mute)
             {
                 if (randomizePitch)
                 {
-                    // Verändert die Tonhöhe minimal zwischen 0.9 (tiefer) und 1.1 (höher)
                     _sfxSource.pitch = UnityEngine.Random.Range(0.9f, 1.1f);
                 }
                 else
                 {
-                    _sfxSource.pitch = 1.0f; // Normaler Pitch
+                    _sfxSource.pitch = 1.0f; 
                 }
 
                 _sfxSource.PlayOneShot(clip);

@@ -7,24 +7,35 @@ namespace DiceGame.Services
 {
     public class PlayerPrefsSettingsService : ISettingsService
     {
+        private static PlayerPrefsSettingsService _instance;
+        public static PlayerPrefsSettingsService Instance
+        {
+            get
+            {
+                if (_instance == null) _instance = new PlayerPrefsSettingsService();
+                return _instance;
+            }
+        }
+
         public event Action<AppSettings> OnSettingsChanged;
 
-        private const string PREF_MUSIC_VOL = "MusicVolume";
-        private const string PREF_SFX_VOL = "SfxVolume";
+        private const string PREF_MUSIC_ON = "IsMusicOn";
+        private const string PREF_SFX_ON = "IsSfxOn";
 
         public AppSettings LoadSettings()
         {
             return new AppSettings
             {
-                MusicVolume = PlayerPrefs.GetFloat(PREF_MUSIC_VOL, 1.0f),
-                SfxVolume = PlayerPrefs.GetFloat(PREF_SFX_VOL, 1.0f)
+                // Wenn nichts gespeichert ist, nehmen wir 1 (True/An)
+                IsMusicOn = PlayerPrefs.GetInt(PREF_MUSIC_ON, 1) == 1,
+                IsSfxOn = PlayerPrefs.GetInt(PREF_SFX_ON, 1) == 1
             };
         }
 
         public void SaveSettings(AppSettings settings)
         {
-            PlayerPrefs.SetFloat(PREF_MUSIC_VOL, settings.MusicVolume);
-            PlayerPrefs.SetFloat(PREF_SFX_VOL, settings.SfxVolume);
+            PlayerPrefs.SetInt(PREF_MUSIC_ON, settings.IsMusicOn ? 1 : 0);
+            PlayerPrefs.SetInt(PREF_SFX_ON, settings.IsSfxOn ? 1 : 0);
             PlayerPrefs.Save();
 
             OnSettingsChanged?.Invoke(settings);

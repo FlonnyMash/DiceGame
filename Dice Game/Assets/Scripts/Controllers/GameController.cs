@@ -27,7 +27,7 @@ namespace DiceGame.Controllers
         [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
 
         [Header("UI Panels")]
-        [SerializeField] private GameObject _optionsPanel;
+        [SerializeField] private GameObject _settingsPanel;
 
         [Header("Audio Clips")]
         [SerializeField] private AudioClip[] _rollDiceSounds;
@@ -47,6 +47,7 @@ namespace DiceGame.Controllers
 
         private void Start()
         {
+            _settingsPanel.SetActive(false);
             _diceCup = new DiceCup();
             
             SetupGame(MatchData.PlayerNames);
@@ -432,11 +433,11 @@ namespace DiceGame.Controllers
         }
 
         // Wird vom Zahnrad-Button aufgerufen
-        public void OpenOptions()
+        public void OpenSettings()
         {
-            if (_optionsPanel != null)
+            if (_settingsPanel != null)
             {
-                _optionsPanel.SetActive(true);
+                _settingsPanel.SetActive(true);
                 
                 // Optional: Einen Klick-Sound abspielen
                 if (DiceGame.Audio.AudioManager.Instance != null)
@@ -447,11 +448,11 @@ namespace DiceGame.Controllers
         }
 
         // Wird vom "Weiterspielen"-Button aufgerufen
-        public void CloseOptions()
+        public void CloseSettings()
         {
-            if (_optionsPanel != null)
+            if (_settingsPanel != null)
             {
-                _optionsPanel.SetActive(false);
+                _settingsPanel.SetActive(false);
             }
         }
 
