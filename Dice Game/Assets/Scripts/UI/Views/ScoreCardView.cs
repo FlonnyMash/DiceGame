@@ -9,9 +9,13 @@ namespace DiceGame.UI.Views
 {
     public class ScoreCardView : MonoBehaviour
     {
-        [Header("References")]
-        [SerializeField] private Transform _rowsContainer; // Hier spawnen wir die Prefabs
+        [Header("Containers (Left/Right Layout)")]
+        [SerializeField] private Transform _leftBlockContainer;  // Für 1er bis 6er
+        [SerializeField] private Transform _rightBlockContainer; // Für Pasche, Full House etc.
+
+        [Header("Prefabs")]
         [SerializeField] private ScoreRowView _rowPrefab;
+        [SerializeField] private BonusRowView _bonusRowPrefab;
         
         [Header("Totals")]
         [SerializeField] private TextMeshProUGUI _upperBonusText;
@@ -23,11 +27,21 @@ namespace DiceGame.UI.Views
         // Gibt die Events der einzelnen Zeilen nach oben an den Controller weiter
         public event System.Action<ScoreCategory> OnCategoryClicked;
 
+        private BonusRowView _bonusRowInstance;
+
         public void Initialize()
         {
+            // Alte Buttons aufräumen, falls das UI neu geladen wird
+            foreach (Transform child in _leftBlockContainer) Destroy(child.gameObject);
+            foreach (Transform child in _rightBlockContainer) Destroy(child.gameObject);
+            _rows.Clear();
+
             foreach (ScoreCategory category in System.Enum.GetValues(typeof(ScoreCategory)))
             {
-                ScoreRowView newRow = Instantiate(_rowPrefab, _rowsContainer, false);
+                // Bestimme, ob der Button links oder rechts erscheinen soll
+                Transform targetContainer = IsLeftColumn(category) ? _leftBlockContainer : _rightBlockContainer;
+
+                ScoreRowView newRow = Instantiate(_rowPrefab, targetContainer, false);
                 
                 // Macht aus "ThreeOfAKind" -> "Three Of A Kind"
                 string displayName = System.Text.RegularExpressions.Regex.Replace(category.ToString(), "([a-z])([A-Z])", "$1 $2");
@@ -36,7 +50,23 @@ namespace DiceGame.UI.Views
                 newRow.OnRowClicked += (cat) => OnCategoryClicked?.Invoke(cat);
                 _rows.Add(category, newRow);
             }
+
+            if (_bonusRowPrefab != null)
+            {
+                _bonusRowInstance = Instantiate(_bonusRowPrefab, _leftBlockContainer, false);
+                // Durch SetAsLastSibling stellen wir sicher, dass es GANZ UNTEN in der LeftColumn landet
+                _bonusRowInstance.transform.SetAsLastSibling(); 
+                _bonusRowInstance.Initialize(63);
+            }
+
             UpdateTotals(0, 0, 0);
+        }
+
+        // Trennungs-Logik: 1er bis 6er kommen nach links, der Rest nach rechts
+        private bool IsLeftColumn(ScoreCategory category)
+        {
+            // In deinem Enum sind Ones bis Sixes der linke/obere Block
+            return (int)category <= (int)ScoreCategory.Sixes;
         }
 
         public void ShowPotentialScore(ScoreCategory category, int points)
@@ -63,8 +93,14 @@ namespace DiceGame.UI.Views
 
         public void UpdateTotals(int upperRaw, int upperBonus, int grandTotal)
         {
-            _upperBonusText.text = $"Bonus ({upperRaw}/63): {upperBonus}";
-            _grandTotalText.text = $"Total: {grandTotal}";
+            // Gibt die erreichten Punkte (ohne den Bonus selbst) an den Balken weiter
+            if (_bonusRowInstance != null)
+            {
+                _bonusRowInstance.UpdateBonusProgress(upperRaw);
+            }
+            
+            if (_grandTotalText != null)
+                _grandTotalText.text = $"Total: {grandTotal}";
         }
 
         public void RefreshDisplay(ScoreCard scoreCard)

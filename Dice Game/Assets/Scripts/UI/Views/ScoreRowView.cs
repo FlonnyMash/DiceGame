@@ -8,9 +8,15 @@ namespace DiceGame.UI.Views
 {
     public class ScoreRowView : MonoBehaviour
     {
+        [Header("UI References")]
         [SerializeField] private TextMeshProUGUI _categoryNameText;
         [SerializeField] private TextMeshProUGUI _scoreText;
         [SerializeField] private Button _selectButton;
+        
+        [Header("Optional: Button Background")]
+        [SerializeField] private Image _buttonImage;
+        [SerializeField] private Sprite _normalSprite;
+        [SerializeField] private Sprite _completedSprite;
         
         [Header("Colors")]
         [SerializeField] private Color _filledColor = Color.black;
@@ -21,7 +27,6 @@ namespace DiceGame.UI.Views
         // Sagt dem Controller: "Der Spieler will hier etwas eintragen!"
         public event Action<ScoreCategory> OnRowClicked;
 
-        // In ScoreRowView.cs
         public void Initialize(ScoreCategory category, string displayName)
         {
             Category = category;
@@ -48,6 +53,12 @@ namespace DiceGame.UI.Views
             _scoreText.text = score.ToString();
             _scoreText.color = _filledColor;
             _selectButton.interactable = false; // Nach dem Eintragen nicht mehr klickbar!
+            
+            // Optisches Feedback: Button-Grafik ändern (falls im Inspector zugewiesen)
+            if (_buttonImage != null && _completedSprite != null)
+            {
+                _buttonImage.sprite = _completedSprite;
+            }
         }
 
         // Wenn noch nicht gewürfelt wurde oder die Runde neu startet
@@ -56,14 +67,21 @@ namespace DiceGame.UI.Views
             _scoreText.text = "-";
             _scoreText.color = _potentialColor;
             _selectButton.interactable = false;
+            
+            // Setzt das Bild zurück auf Standard (falls im Inspector zugewiesen)
+            if (_buttonImage != null && _normalSprite != null)
+            {
+                _buttonImage.sprite = _normalSprite;
+            }
         }
 
-        private void OnDestroy(){
-    // Wir prüfen erst, ob der Button überhaupt (noch) existiert
+        private void OnDestroy()
+        {
+            // Wir prüfen erst, ob der Button überhaupt (noch) existiert
             if (_selectButton != null)
-                {
-                    _selectButton.onClick.RemoveAllListeners();
-                }
+            {
+                _selectButton.onClick.RemoveAllListeners();
+            }
         }
     }
 }
