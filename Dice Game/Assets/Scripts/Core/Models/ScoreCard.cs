@@ -12,9 +12,13 @@ namespace DiceGame.Core.Models
 
         public event Action OnScoreCardChanged;
 
+        // NEU: Speichert, ob der Bonus abgeholt wurde
+        public bool IsBonusClaimed { get; private set; }
+
         public ScoreCard()
         {
             _scores = new Dictionary<ScoreCategory, int?>();
+            IsBonusClaimed = false;
             
             // Initialisiere alle Kategorien als leer
             foreach (ScoreCategory category in Enum.GetValues(typeof(ScoreCategory)))
@@ -32,8 +36,31 @@ namespace DiceGame.Core.Models
             if (IsCategoryFilled(category)) return false; // Bereits belegt!
 
             _scores[category] = score;
+
+            // SICHERHEITS-NETZ: Wenn das die letzte Eingabe des Spiels war 
+            // und der Bonus erreicht, aber vergessen wurde, wird er jetzt automatisch geclaimt.
+            if (IsComplete && IsBonusEligible && !IsBonusClaimed)
+            {
+                IsBonusClaimed = true;
+            }
+
             OnScoreCardChanged?.Invoke();
             return true;
+        }
+
+        // --- NEU: CLAIM LOGIK ---
+
+        // Prüft, ob der Spieler die 63 Punkte überhaupt voll hat
+        public bool IsBonusEligible => UpperSectionRaw >= 63;
+
+        // Wird vom Controller aufgerufen, wenn der Spieler auf den hüpfenden Button drückt
+        public void ClaimBonus()
+        {
+            if (IsBonusEligible && !IsBonusClaimed)
+            {
+                IsBonusClaimed = true;
+                OnScoreCardChanged?.Invoke(); // UI benachrichtigen, dass sich das Total geändert hat
+            }
         }
 
         // --- BERECHNUNGEN ---
@@ -43,7 +70,8 @@ namespace DiceGame.Core.Models
             ScoreCategory.Fours, ScoreCategory.Fives, ScoreCategory.Sixes
         });
 
-        public int UpperSectionBonus => UpperSectionRaw >= 63 ? 35 : 0;
+        // GEÄNDERT: Gibt die 35 Punkte nur zurück, wenn sie auch eingesammelt wurden
+        public int UpperSectionBonus => IsBonusClaimed ? 35 : 0;
 
         public int LowerSectionTotal => GetCategoriesSum(new[] {
             ScoreCategory.ThreeOfAKind, ScoreCategory.FourOfAKind, ScoreCategory.FullHouse,

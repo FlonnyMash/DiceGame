@@ -27,6 +27,8 @@ namespace DiceGame.UI.Views
         // Gibt die Events der einzelnen Zeilen nach oben an den Controller weiter
         public event System.Action<ScoreCategory> OnCategoryClicked;
 
+        public event System.Action OnBonusClaimClicked;
+
         private BonusRowView _bonusRowInstance;
 
         public void Initialize()
@@ -57,6 +59,8 @@ namespace DiceGame.UI.Views
                 // Durch SetAsLastSibling stellen wir sicher, dass es GANZ UNTEN in der LeftColumn landet
                 _bonusRowInstance.transform.SetAsLastSibling(); 
                 _bonusRowInstance.Initialize(63);
+
+                _bonusRowInstance.OnClaimClicked += () => OnBonusClaimClicked?.Invoke();
             }
 
             UpdateTotals(0, 0, 0);
@@ -91,16 +95,19 @@ namespace DiceGame.UI.Views
             }
         }
 
-        public void UpdateTotals(int upperRaw, int upperBonus, int grandTotal)
+        public void UpdateTotals(int upperRaw, int upperBonus, int grandTotal, bool isBonusClaimed = false)
         {
-            // Gibt die erreichten Punkte (ohne den Bonus selbst) an den Balken weiter
+            // Der Name ist jetzt korrekt UpdateBonusState und übergibt den isClaimed Status!
             if (_bonusRowInstance != null)
             {
-                _bonusRowInstance.UpdateBonusProgress(upperRaw);
+                _bonusRowInstance.UpdateBonusState(upperRaw, isBonusClaimed);
             }
+
+            if (_upperBonusText != null)
+                _upperBonusText.text = $"({upperRaw}/63)";
             
             if (_grandTotalText != null)
-                _grandTotalText.text = $"Total: {grandTotal}";
+                _grandTotalText.text = $"{grandTotal}";
         }
 
         public void RefreshDisplay(ScoreCard scoreCard)
@@ -117,7 +124,8 @@ namespace DiceGame.UI.Views
                     kvp.Value.Clear();
                 }
             }
-            UpdateTotals(scoreCard.UpperSectionRaw, scoreCard.UpperSectionBonus, scoreCard.GrandTotal);
+            // HIER wird jetzt als 4. Wert übergeben, ob der Bonus schon abgeholt wurde
+            UpdateTotals(scoreCard.UpperSectionRaw, scoreCard.UpperSectionBonus, scoreCard.GrandTotal, scoreCard.IsBonusClaimed);
         }
     }
 }

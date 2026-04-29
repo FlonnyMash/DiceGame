@@ -32,6 +32,7 @@ namespace DiceGame.Controllers
         [Header("Audio Clips")]
         [SerializeField] private AudioClip[] _rollDiceSounds;
         [SerializeField] private AudioClip _scoreCategorySound;
+        [SerializeField] private AudioClip _bonusClaimSound;
 
         
         // Core Models
@@ -44,6 +45,7 @@ namespace DiceGame.Controllers
 
         public Player CurrentPlayer => _players[_currentPlayerIndex];
         public event System.Action OnTurnStarted;
+
 
         private void Start()
         {
@@ -63,6 +65,7 @@ namespace DiceGame.Controllers
 
             // ScoreCard-Events verbinden
             _scoreCardView.OnCategoryClicked += HandleCategoryClicked;
+            _scoreCardView.OnBonusClaimClicked += HandleBonusClaimed;
 
             // Roll-Button verbinden
             _rollButton.onClick.AddListener(OnRollButtonClicked);
@@ -479,6 +482,24 @@ namespace DiceGame.Controllers
                 _scoreCardCanvasGroup.interactable = isInteractable;
                 _scoreCardCanvasGroup.blocksRaycasts = isInteractable;
             }
+        }
+
+        private void HandleBonusClaimed()
+        {
+            // 1. Im Datenmodell den Bonus auf 'true' setzen
+            CurrentPlayer.ScoreCard.ClaimBonus();
+
+            // 2. Die UI aktualisieren, damit der Button aufhört zu hüpfen 
+            // und das neue Total (mit den +35 Punkten) angezeigt wird.
+            _scoreCardView.RefreshDisplay(CurrentPlayer.ScoreCard);
+
+             // 3. Optional: Einen Soundeffekt abspielen
+             if (DiceGame.Audio.AudioManager.Instance != null)
+             {
+                 DiceGame.Audio.AudioManager.Instance.PlaySFX(_bonusClaimSound);
+             }
+            
+                // 4. Optional: Ein kurzes visuelles Feedback (z.B. eine Partikel-Explosion oder ein "+35!" Text) könnte hier auch noch hinzugefügt werden.
         }
 
     }

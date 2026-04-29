@@ -17,6 +17,10 @@ namespace DiceGame.UI.Views
         [SerializeField] private Image _buttonImage;
         [SerializeField] private Sprite _normalSprite;
         [SerializeField] private Sprite _completedSprite;
+
+        [Header("Animation")]
+        [SerializeField] private Animator _animator; 
+        private const string ANIM_TRIGGER_SELECTED = "OnSelected"; 
         
         [Header("Colors")]
         [SerializeField] private Color _filledColor = Color.black;
@@ -24,51 +28,59 @@ namespace DiceGame.UI.Views
 
         public ScoreCategory Category { get; private set; }
         
-        // Sagt dem Controller: "Der Spieler will hier etwas eintragen!"
         public event Action<ScoreCategory> OnRowClicked;
+
+        private void Awake() 
+        {
+            if (_animator == null) _animator = GetComponent<Animator>();
+            if (_selectButton == null) _selectButton = GetComponent<Button>();
+        }
 
         public void Initialize(ScoreCategory category, string displayName)
         {
             Category = category;
             _categoryNameText.text = displayName;
             
-            // Falls der Button jetzt auf dem gleichen Objekt wie das Skript liegt:
-            if (_selectButton == null) _selectButton = GetComponent<Button>();
-            
-            _selectButton.onClick.AddListener(() => OnRowClicked?.Invoke(Category));
+            _selectButton.onClick.RemoveAllListeners();
+            _selectButton.onClick.AddListener(() => 
+            {
+                // --- NEU: Die Animation feuert jetzt NUR NOCH bei einem echten Klick! ---
+                if (_animator != null)
+                {
+                    _animator.SetTrigger(ANIM_TRIGGER_SELECTED);
+                }
+                
+                OnRowClicked?.Invoke(Category);
+            });
             Clear();
         }
 
-        // Zeigt an, was man bekommen WÜRDE, wenn man jetzt klickt (Vorschau)
         public void ShowPotentialScore(int potentialScore)
         {
             _scoreText.text = potentialScore.ToString();
             _scoreText.color = _potentialColor;
-            _selectButton.interactable = true; // Klickbar machen
+            _selectButton.interactable = true; 
         }
 
-        // Wird aufgerufen, wenn die Punkte final eingetragen wurden
         public void SetFinalScore(int score)
         {
             _scoreText.text = score.ToString();
             _scoreText.color = _filledColor;
-            _selectButton.interactable = false; // Nach dem Eintragen nicht mehr klickbar!
+            _selectButton.interactable = false; 
             
-            // Optisches Feedback: Button-Grafik ändern (falls im Inspector zugewiesen)
             if (_buttonImage != null && _completedSprite != null)
             {
                 _buttonImage.sprite = _completedSprite;
             }
+            // (Animations-Trigger hier gelöscht, da er sonst von RefreshDisplay immer wieder aufgerufen wird)
         }
 
-        // Wenn noch nicht gewürfelt wurde oder die Runde neu startet
         public void Clear()
         {
             _scoreText.text = "-";
             _scoreText.color = _potentialColor;
             _selectButton.interactable = false;
             
-            // Setzt das Bild zurück auf Standard (falls im Inspector zugewiesen)
             if (_buttonImage != null && _normalSprite != null)
             {
                 _buttonImage.sprite = _normalSprite;
@@ -77,7 +89,6 @@ namespace DiceGame.UI.Views
 
         private void OnDestroy()
         {
-            // Wir prüfen erst, ob der Button überhaupt (noch) existiert
             if (_selectButton != null)
             {
                 _selectButton.onClick.RemoveAllListeners();
