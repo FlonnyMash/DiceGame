@@ -103,9 +103,10 @@ namespace DiceGame.UI.Views
                 _bonusRowInstance.UpdateBonusState(upperRaw, isBonusClaimed);
             }
 
-            if (_upperBonusText != null)
-                _upperBonusText.text = $"({upperRaw}/63)";
-            
+            if (_upperBonusText != null){
+                _upperBonusText.text = $"Bonus: ({upperRaw}/63)";
+                _upperBonusText.color = upperRaw >= 63 ? Color.green : (ColorUtility.TryParseHtmlString("#FF3637", out var bonusColor) ? bonusColor : Color.red)    ; // Bonus-Zähler grün färben, wenn erreicht
+            }
             if (_grandTotalText != null)
                 _grandTotalText.text = $"{grandTotal}";
         }

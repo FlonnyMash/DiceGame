@@ -8,62 +8,87 @@ namespace DiceGame.UI.Views
 {
     public class DieView : MonoBehaviour, IPointerClickHandler
     {
+        [Header("UI References")]
         [SerializeField] private Image _dieImage; 
         [SerializeField] private GameObject _heldHighlight; 
+        [SerializeField] private GameObject _heldBoarder; 
 
         [Header("Dice Faces (1 to 6)")]
         [SerializeField] private Sprite[] _diceFaces; 
 
+        [Header("Animation")]
+        [SerializeField] private Animator _animator;
+        
+        // Wir nutzen jetzt Trigger für präzise Steuerung
+        private const string ANIM_TRIGGER_SELECT = "OnSelect"; 
+        private const string ANIM_TRIGGER_DESELECT = "OnDeselect"; 
+        private const string ANIM_TRIGGER_RESET = "SilentReset"; 
+
         public event Action<int> OnDieClicked; 
 
         private int _dieIndex;
-        private bool _isHeld; // Unser "Gedächtnis"
+        private bool _isHeld; 
+
+        private void Awake()
+        {
+            if (_animator == null) _animator = GetComponent<Animator>();
+        }
 
         public void Initialize(int index)
         {
             _dieIndex = index;
         }
 
+        // Kümmert sich NUR noch um das Aussehen (Bilder/Rahmen), NICHT mehr um Animationen!
         public void UpdateView(int value, bool isHeld)
         {
-            // Wir merken uns sofort, ob der Würfel gehalten wird
             _isHeld = isHeld; 
 
-            // Das richtige Bild setzen
             if (value >= 1 && value <= 6 && _diceFaces.Length == 6)
             {
                 _dieImage.sprite = _diceFaces[value - 1];
             }
 
-            // Den "Gehalten"-Status (den Rahmen) anzeigen
-            if (_heldHighlight != null)
+            if (_heldHighlight != null) _heldHighlight.SetActive(isHeld);
+            if (_heldBoarder != null) _heldBoarder.SetActive(isHeld);
+        }
+
+        // --- NEU: Explizite Animations-Steuerung ---
+        
+        // Wird beim Klicken aufgerufen
+        public void PlayToggleAnimation(bool isNowHeld)
+        {
+            if (_animator == null) return;
+
+            if (isNowHeld)
+                _animator.SetTrigger(ANIM_TRIGGER_SELECT);
+            else
+                _animator.SetTrigger(ANIM_TRIGGER_DESELECT);
+        }
+
+        // Wird vom Controller aufgerufen, wenn der Turn wechselt (ohne Animation!)
+        public void ResetToIdleSilent()
+        {
+            if (_animator != null)
             {
-                _heldHighlight.SetActive(isHeld);
+                _animator.SetTrigger(ANIM_TRIGGER_RESET);
             }
         }
 
         public void OnPointerClick(PointerEventData eventData)
         {
-            // Dem Controller sagen, welcher Würfel geklickt wurde
             OnDieClicked?.Invoke(_dieIndex);
         }
 
         public void AnimateRoll(int finalValue, float duration)
         {
-            // Türsteher: Wenn der Würfel gehalten wird, brechen wir hier sofort ab!
-            if (_isHeld) 
-            {
-                return; 
-            }
-
+            if (_isHeld) return; 
             StartCoroutine(RollAnimationRoutine(finalValue, duration));
         }
 
         private IEnumerator RollAnimationRoutine(int finalValue, float duration)
         {
             float elapsed = 0f;
-            
-            // 1. Die wilde "Roll"-Phase (zufällige Bilder)
             while (elapsed < duration)
             {
                 if (_diceFaces.Length > 0)
@@ -71,12 +96,10 @@ namespace DiceGame.UI.Views
                     int randomFace = UnityEngine.Random.Range(0, _diceFaces.Length);
                     _dieImage.sprite = _diceFaces[randomFace];
                 }
-                
                 yield return new WaitForSeconds(0.05f);
                 elapsed += 0.05f;
             }
 
-            // 2. Das große Finale: Den echten Wert anzeigen
             if (finalValue >= 1 && finalValue <= 6 && _diceFaces.Length == 6)
             {
                 _dieImage.sprite = _diceFaces[finalValue - 1];

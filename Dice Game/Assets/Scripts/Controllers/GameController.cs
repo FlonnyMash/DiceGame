@@ -25,6 +25,8 @@ namespace DiceGame.Controllers
         [SerializeField] private GameOverView _gameOverView;
         [SerializeField] private TMPro.TextMeshProUGUI _currentPlayerNameText;
         [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
+        [SerializeField] private Button _skipBotButton;
+        [SerializeField] private BotController _botController;
 
         [Header("UI Panels")]
         [SerializeField] private GameObject _settingsPanel;
@@ -47,12 +49,18 @@ namespace DiceGame.Controllers
         public event System.Action OnTurnStarted;
 
 
+
         private void Start()
         {
             _settingsPanel.SetActive(false);
             _diceCup = new DiceCup();
             
             SetupGame(MatchData.PlayerNames);
+
+            if (_skipBotButton != null)
+            {
+                _skipBotButton.onClick.AddListener(() => _botController.SkipBotTurn());
+            }
 
             // Würfel-Events verbinden
             for (int i = 0; i < _dieViews.Count; i++)
@@ -180,14 +188,29 @@ namespace DiceGame.Controllers
 
         private void HandleDieClicked(int dieIndex)
         {
-            // Der Türsteher: Wenn der Bot dran ist, wird jeder Klick sofort blockiert!
+            // Input-Ebene: Der Türsteher blockiert echte Klicks, wenn der Bot dran ist
             if (CurrentPlayer.Name == "Bot") return;
             
-            if (CurrentPlayer.Name == "Bot") return;
-            
+            // Wenn der Spieler dran ist, leiten wir die Anfrage an die zentrale Logik weiter
+            ToggleDieState(dieIndex);
+        }
+
+        // --- NEU: Diese Methode kann vom Spieler UND vom Bot aufgerufen werden ---
+        public void ToggleDieState(int dieIndex)
+        {
+            // Logik-Ebene: Darf überhaupt gehalten werden?
             if (_diceCup.RollsLeft < DiceCup.MaxRolls)
             {
+                // 1. Datenmodell aktualisieren
                 _diceCup.Dice[dieIndex].ToggleHold();
+
+                // 2. Zustand abfragen
+                int currentValue = _diceCup.Dice[dieIndex].Value;
+                bool isNowHeld = _diceCup.Dice[dieIndex].IsHeld;
+
+                // 3. UI synchronisieren (Bilder und Animation)
+                _dieViews[dieIndex].UpdateView(currentValue, isNowHeld);
+                _dieViews[dieIndex].PlayToggleAnimation(isNowHeld);
             }
         }
 
@@ -300,7 +323,27 @@ namespace DiceGame.Controllers
 
         private void StartNewTurn()
         {
+            // 1. Datenmodell aufräumen (Würfel entsperren, Wurf-Zähler auf 0, etc.)
             _diceCup.ResetTurn();
+
+            // --- NEU: Die Würfel-UI für den neuen Zug lautlos zurücksetzen ---
+            // (Ich gehe davon aus, dass dein Array mit den Views _dieViews heißt)
+            if (_dieViews != null)
+            {
+                for (int i = 0; i < _dieViews.Count; i++)
+                {
+                    // Holt den aktuellen (oder resetteten) Wert aus dem Modell
+                    int currentValue = _diceCup.Dice[i].Value; 
+                    
+                    // UI aktualisieren (Rahmen/Highlight ausblenden)
+                    _dieViews[i].UpdateView(currentValue, false);
+                    
+                    // Animator zwingen, den "Gehalten"-Zustand lautlos abzubrechen
+                    _dieViews[i].ResetToIdleSilent();
+                }
+            }
+            // ------------------------------------------------------------------
+
             _scoreCardView.ClearAllPotentials(); 
             UpdateMultiplayerScoreTracker();
             RefreshUIForCurrentPlayer(); // Wichtig, damit das UI den Namen anzeigt
@@ -315,6 +358,11 @@ namespace DiceGame.Controllers
             if (CurrentPlayer.Name != "Bot")
             {
                 _rollButton.interactable = true;
+                _skipBotButton.gameObject.SetActive(false); //Skip Button verstecken, wenn kein Bot am Zug ist
+            }
+            else
+            {
+                _skipBotButton.gameObject.SetActive(true); //Skip Button anzeigen, wenn ein Bot am Zug ist
             }
         }
 
@@ -484,7 +532,7 @@ namespace DiceGame.Controllers
             }
         }
 
-        private void HandleBonusClaimed()
+        public void HandleBonusClaimed()
         {
             // 1. Im Datenmodell den Bonus auf 'true' setzen
             CurrentPlayer.ScoreCard.ClaimBonus();

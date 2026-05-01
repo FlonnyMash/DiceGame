@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -16,8 +17,7 @@ namespace DiceGame.UI.MainMenu
 
         [Header("Panel Positionen (X-Werte)")]
         [SerializeField] private float _mainMenuX = 0f;
-        [SerializeField] private float _multiplayerTypeMenuX = -1500f; 
-        [SerializeField] private float _localSetupMenuX = -3000f;
+        [SerializeField] private float _localSetupMenuX = -1500f;
 
         [Header("Buttons - Main Menu")]
         [SerializeField] private Button _singleplayerButton;
@@ -25,6 +25,7 @@ namespace DiceGame.UI.MainMenu
         [SerializeField] private Button _settingsButton;
         [SerializeField] private TextMeshProUGUI _mainMenuHighScoreText;
         [SerializeField] private Button _backFromSettingsButton;
+        [SerializeField] private Button _backFromSettingsButton_1;
 
         [Header("Buttons - Multiplayer Auswahl")]
         [SerializeField] private Button _localButton;
@@ -43,14 +44,23 @@ namespace DiceGame.UI.MainMenu
         [Header("UI Panels")]
         [SerializeField] private GameObject _settingsPanel;
         [SerializeField] private GameObject _mainMenuPanel;
+        [SerializeField] private GameObject _multiplayerTypePanel;
+
+        [Header("Animations")]
+        [SerializeField] private Animator _openSettingsAnimator; // Für das Einblenden des Main Menus
+        [SerializeField] private Animator _settingsAnimator; // Für das Sliden der Panels
+        [SerializeField] private Animator _multiplayerTypeAnimator; // Für das Einblenden der Multiplayer-Auswahl
+
 
         private int _currentPlayerCount = 1; 
         private const int MIN_PLAYERS = 1;
         private const int MAX_PLAYERS = 4;
 
+
         private void Start()
         {
             _targetPosition = new Vector2(_mainMenuX, 0);
+
 
             if (_mainMenuHighScoreText != null)
             {
@@ -64,25 +74,35 @@ namespace DiceGame.UI.MainMenu
             
             // --- Events simpel und direkt verknüpfen ---
             if (_singleplayerButton) _singleplayerButton.onClick.AddListener(StartSingleplayer);
-            if (_multiplayerMenuButton) _multiplayerMenuButton.onClick.AddListener(() => MoveTo(_multiplayerTypeMenuX));
+            if (_multiplayerMenuButton)
+            {
+                _multiplayerMenuButton.onClick.RemoveListener(MultiplayerTypeMenu);
+                _multiplayerMenuButton.onClick.AddListener(MultiplayerTypeMenu);
+            }
             
             // Settings Logik
             if (_settingsButton) _settingsButton.onClick.AddListener(OpenSettings);
-            if (_backFromSettingsButton) _backFromSettingsButton.onClick.AddListener(CloseSettings);
-
+            if (_backFromSettingsButton) _backFromSettingsButton.onClick.AddListener(() => StartCoroutine(CloseSettings()));
+            if (_backFromSettingsButton_1) _backFromSettingsButton_1.onClick.AddListener(() => StartCoroutine(CloseSettings()));
             if (_localButton) _localButton.onClick.AddListener(() => MoveTo(_localSetupMenuX));
             if (_backToMainButton) _backToMainButton.onClick.AddListener(() => MoveTo(_mainMenuX));
             
             if (_startGameButton) _startGameButton.onClick.AddListener(StartLocalMultiplayer);
-            if (_backToTypeMenuButton) _backToTypeMenuButton.onClick.AddListener(() => MoveTo(_multiplayerTypeMenuX));
             
             if (_addPlayerButton) _addPlayerButton.onClick.AddListener(AddPlayer);
             if (_removePlayerButton) _removePlayerButton.onClick.AddListener(RemovePlayer);
+            if (_backToTypeMenuButton) _backToTypeMenuButton.onClick.AddListener(() => MoveTo(_mainMenuX));
+
+
+
+            
 
             foreach (var input in _playerNameInputs)
             {
                 input.onValueChanged.AddListener(_ => ValidateInputs());
             }
+
+
 
             UpdatePlayerCountUI();
         }
@@ -103,14 +123,25 @@ namespace DiceGame.UI.MainMenu
 
         private void OpenSettings()
         {
-            _mainMenuPanel.SetActive(false);
+            _openSettingsAnimator.SetTrigger("Pressed"); // Trigger für die Einblend-Animation
             _settingsPanel.SetActive(true);
+            _settingsAnimator.SetBool("IsVisible", true); // NEU: Bool für die Sichtbarkeit setzen
         }
 
-        private void CloseSettings()
+        private IEnumerator CloseSettings()
         {
+            _settingsAnimator.SetBool("IsVisible", false);
+
+            yield return new WaitForSeconds(0.5f);
+
             _settingsPanel.SetActive(false);
-            _mainMenuPanel.SetActive(true);
+        }
+
+        private void MultiplayerTypeMenu()
+        {
+            bool isVisible = _multiplayerTypeAnimator.GetBool("IsVisible");
+
+            _multiplayerTypeAnimator.SetBool("IsVisible", !isVisible);
         }
 
         private void MoveTo(float targetX)
@@ -151,7 +182,7 @@ namespace DiceGame.UI.MainMenu
 
             if (_playerCountText != null)
             {
-                _playerCountText.text = (_currentPlayerCount == 1) ? "1 Player (vs Bot)" : $"{_currentPlayerCount} Players";
+                _playerCountText.text = (_currentPlayerCount == 1) ? "You vs" + "<color=red> Bot</color>" : $"{_currentPlayerCount} Players";
             }
 
             ValidateInputs();
