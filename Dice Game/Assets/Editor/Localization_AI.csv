@@ -1,0 +1,49 @@
+Key;en;de;es;fr;it;pt
+menu_title;Yatzie;Kniffel;Yatzie;Yatzie;Yatzy;Yatzy
+btn_play_local;Local;Lokal;Local;Local;Locale;Local
+title_settings;Settings;Einstellungen;Ajustes;Paramètres;Impostazioni;Configurações
+title_languages;Languages;Sprachen;Idiomas;Langues;Lingue;Idiomas
+title_audio;Sound;Audio;Audio;Son;Audio;Som
+audio_master;Master Volume;Gesamtlautstärke;Volumen maestro;Volume principal;Volume master;Volume principal
+audio_music;Music;Musik;Música;Musique;Musica;Música
+audio_sfx;Sound Effects;Sound-Effekte;Efectos de sonido;Effets sonores;Effetti sonori;Efeitos sonoros
+btn_close;Close;Schließen;Cerrar;Fermer;Chiudi;Fechar
+cat_ones;Ones;Einer;Unos;Un;Uno;Uns
+cat_twos;Twos;Zweier;Doses;Deux;Due;Dois
+cat_threes;Threes;Dreier;Treses;Trois;Tre;Três
+cat_fours;Fours;Vierer;Cuatros;Quatre;Quattro;Quatros
+cat_fives;Fives;Fünfer;Cincos;Cinq;Cinque;Cincos
+cat_sixes;Sixes;Sechser;Seises;Six;Sei;Seis
+cat_threeofakind;Three Of A Kind;Drilling;Trío;Brelan;Tris;Trinca
+cat_fourofakind;Four Of A Kind;Vierling;Póker;Carré;Poker;Quadra
+cat_fullhouse;Full House;Full House;Full House;Full House;Full House;Full House
+cat_smallstraight;Small Straight;Kleine Straße;Escalera menor;Petite suite;Scala corta;Sequência menor
+cat_largestraight;Large Straight;Große Straße;Escalera mayor;Grande suite;Scala grande;Sequência maior
+cat_nicerdicer;Nicer Dicer;Nicer Dicer;Nicer Dicer;Nicer Dicer;Nicer Dicer;Nicer Dicer
+cat_chance;Chance;Chance;Suerte;Chance;Chance;Sorte
+you_vs_bot;You vs <color=red>Bot</color>;Du gegen <color=red>Bot</color>;Tú contra <color=red>Bot</color>;Vous contre <color=red>Bot</color>;Tu contro <color=red>Bot</color>;Você contra <color=red>Bot</color>
+players_count;{0} Players;{0} Spieler;{0} Jugadores;{0} Joueurs;{0} Giocatori;{0} Jogadores
+new_record;New Record: {0}!;Neuer Rekord: {0}!;¡Nuevo récord: {0}!;Nouveau record : {0} !;Nuovo record: {0}!;Novo recorde: {0}!
+high_score;High Score: {0};High Score: {0};High Score: {0};High Score : {0};High Score: {0};High Score: {0}
+turn_indicator;Turn: {0};Am Zug: {0};Turno: {0};Tour : {0};Turno: {0};Vez de: {0}
+claim_bonus;CLAIM BONUS!;BONUS HOLEN!;¡RECLAMAR BONO!;RÉCUPÉRER LE BONUS !;RISCATTA BONUS!;RESGATAR BÔNUS!
+bonus_claimed;Claimed!;Eingesammelt!;¡Reclamado!;Réclamé !;Riscattato!;Resgatado!
+bonus_progress;Bonus {0}/{1};Bonus {0}/{1};Bono {0}/{1};Bonus {0}/{1};Bonus {0}/{1};Bônus {0}/{1}
+game_over;Game Over;Spiel vorbei;Fin del juego;Partie terminée;Fine partita;Fim de jogo
+your_score;Your Score: {0};Deine Punkte: {0};Tu puntuación: {0};Votre score : {0};Il tuo punteggio: {0};Sua pontuação: {0}
+pass_device;{0} is next!\nPass the device.;{0} ist dran!\nGerät weitergeben.;¡Es el turno de {0}!\nPasa el dispositivo.;{0} est le prochain !\nPassez l'appareil.;{0} è il prossimo!\nPassa il dispositivo.;{0} é o próximo!\nPasse o dispositivo.
+btn_local;Local;Lokal;Local;Local;Locale;Local
+btn_private;Private;Privat;Privado;Privé;Privato;Privado
+btn_online;Online;Online;En línea;En ligne;Online;Online
+btn_multiplayer;Multiplayer;Mehrspieler;Multijugador;Multijoueur;Multigiocatore;Multijogador
+btn_singleplayer;Singleplayer;Einzelspieler;Un jugador;Solo;Giocatore singolo;Um jogador
+btn_skip_bot;Skip;Überspringen;Saltar;Passer;Salta;Pular
+total_points;TOTAL;PUNKTE;TOTAL;TOTAL;TOTALE;TOTAL
+title_score;SCORE;PUNKTZAHL;PUNTUACIÓN;SCORE;PUNTEGGIO;PONTUAÇÃO
+title_local;Local;Lokal;Local;Local;Locale;Local
+btn_start;Start;Start;Empezar;Démarrer;Avvia;Iniciar
+input_player_one;Player 1;Spieler 1;Jugador 1;Joueur 1;Giocatore 1;Jogador 1
+input_player_two;Player 2;Spieler 2;Jugador 2;Joueur 2;Giocatore 2;Jogador 2
+input_player_three;Player 3;Spieler 3;Jugador 3;Joueur 3;Giocatore 3;Jogador 3
+input_player_four;Player 4;Spieler 4;Jugador 4;Joueur 4;Giocatore 4;Jogador 4
+btn_main_menu;Main Menu;Hauptmenü;Menú principal;Menu principal;Menu principale;Menu principal

@@ -405,10 +405,7 @@ MonoBehaviour:
   openLanguagePanelButton: {fileID: 0}
   currentLanguageIcon: {fileID: 0}
   closeLanguagePanelButton: {fileID: 0}
-  englishLanguageButton: {fileID: 0}
-  germanLanguageButton: {fileID: 0}
-  englishFlagSprite: {fileID: 0}
-  germanFlagSprite: {fileID: 0}
+  languageButtons: []
 --- !u!222 &45742233
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -2290,10 +2287,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 946801967}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 790, y: -50}
+  m_SizeDelta: {x: 140, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &469620394
 MonoBehaviour:
@@ -2622,7 +2619,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &517978033
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2686,10 +2683,25 @@ MonoBehaviour:
   openLanguagePanelButton: {fileID: 1524985961}
   currentLanguageIcon: {fileID: 2008791937}
   closeLanguagePanelButton: {fileID: 1070250629}
-  englishLanguageButton: {fileID: 1297271484}
-  germanLanguageButton: {fileID: 2009357392}
-  englishFlagSprite: {fileID: 3286163911610860551, guid: 1b6041dd7c35d514ca0ee29762653f52, type: 3}
-  germanFlagSprite: {fileID: 3286163911610860551, guid: df8968add34b03b479f1e6768c07f38d, type: 3}
+  languageButtons:
+  - language: 0
+    button: {fileID: 1297271484}
+    flagSprite: {fileID: 3286163911610860551, guid: 1b6041dd7c35d514ca0ee29762653f52, type: 3}
+  - language: 1
+    button: {fileID: 2009357392}
+    flagSprite: {fileID: 3286163911610860551, guid: df8968add34b03b479f1e6768c07f38d, type: 3}
+  - language: 2
+    button: {fileID: 2129362155}
+    flagSprite: {fileID: 3286163911610860551, guid: 2b6f7f47272d3a748af6ea98a9730e7a, type: 3}
+  - language: 3
+    button: {fileID: 469620394}
+    flagSprite: {fileID: 3286163911610860551, guid: 8f8a313291d123443976fa9fd040d974, type: 3}
+  - language: 4
+    button: {fileID: 1904833722}
+    flagSprite: {fileID: 3286163911610860551, guid: d1c5ff5a820feee43977e073a064d4ad, type: 3}
+  - language: 5
+    button: {fileID: 1705873781}
+    flagSprite: {fileID: 3286163911610860551, guid: 0e18b6959416c1b4cb0eb2ffa00e434b, type: 3}
 --- !u!222 &517978036
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4201,7 +4213,6 @@ RectTransform:
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 2102618585}
-  - {fileID: 1155262593}
   - {fileID: 33131402}
   - {fileID: 1226477644}
   m_Father: {fileID: 814982979}
@@ -4295,7 +4306,7 @@ Animator:
   m_GameObject: {fileID: 1011444430}
   m_Enabled: 1
   m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: d248342c187647b4a8e9b3991b024403, type: 2}
   m_CullingMode: 0
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
@@ -5054,11 +5065,11 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1011444431}
+  m_Father: {fileID: 1236324014}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 80, y: -37.5}
+  m_AnchoredPosition: {x: 335, y: -87.000015}
   m_SizeDelta: {x: 120, y: 15}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1156402820
@@ -5333,6 +5344,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1404868769}
+  - {fileID: 1155262593}
   - {fileID: 814982979}
   - {fileID: 110181051}
   - {fileID: 517978033}
@@ -5723,10 +5735,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 946801967}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 70, y: -50}
+  m_SizeDelta: {x: 140, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1297271484
 MonoBehaviour:
@@ -6386,6 +6398,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1389600281}
   - component: {fileID: 1389600283}
+  - component: {fileID: 1389600284}
   - component: {fileID: 1389600282}
   m_Layer: 5
   m_Name: Text (TMP)
@@ -6408,10 +6421,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 236125819}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 150, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1389600282
 MonoBehaviour:
@@ -6460,8 +6473,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 18
-  m_fontSizeBase: 18
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -6513,6 +6526,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1389600280}
   m_CullTransparentMesh: 1
+--- !u!114 &1389600284
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1389600280}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: btn_private
 --- !u!1 &1403857004
 GameObject:
   m_ObjectHideFlags: 0
@@ -6661,7 +6687,7 @@ GameObject:
   - component: {fileID: 1403999919}
   - component: {fileID: 1403999918}
   m_Layer: 5
-  m_Name: PanelImage
+  m_Name: Content
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6737,6 +6763,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1404868769}
   - component: {fileID: 1404868771}
+  - component: {fileID: 1404868772}
   - component: {fileID: 1404868770}
   m_Layer: 5
   m_Name: Title
@@ -6864,6 +6891,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1404868768}
   m_CullTransparentMesh: 1
+--- !u!114 &1404868772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1404868768}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: menu_title
 --- !u!1 &1429649158
 GameObject:
   m_ObjectHideFlags: 0
@@ -7555,6 +7595,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1557255160}
   - component: {fileID: 1557255163}
+  - component: {fileID: 1557255164}
   - component: {fileID: 1557255162}
   - component: {fileID: 1557255161}
   m_Layer: 5
@@ -7703,6 +7744,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1557255159}
   m_CullTransparentMesh: 1
+--- !u!114 &1557255164
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1557255159}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: input_player_three
 --- !u!1 &1585900765
 GameObject:
   m_ObjectHideFlags: 0
@@ -7713,6 +7767,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1585900766}
   - component: {fileID: 1585900768}
+  - component: {fileID: 1585900769}
   - component: {fileID: 1585900767}
   m_Layer: 5
   m_Name: Text (TMP)
@@ -7735,10 +7790,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 647128979}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 150, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1585900767
 MonoBehaviour:
@@ -7787,8 +7842,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 20
-  m_fontSizeBase: 20
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -7840,6 +7895,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1585900765}
   m_CullTransparentMesh: 1
+--- !u!114 &1585900769
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1585900765}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: btn_online
 --- !u!1 &1603057563
 GameObject:
   m_ObjectHideFlags: 0
@@ -7851,6 +7919,7 @@ GameObject:
   - component: {fileID: 1603057564}
   - component: {fileID: 1603057566}
   - component: {fileID: 1603057565}
+  - component: {fileID: 1603057567}
   m_Layer: 5
   m_Name: Text (TMP)
   m_TagString: Untagged
@@ -7977,6 +8046,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1603057563}
   m_CullTransparentMesh: 1
+--- !u!114 &1603057567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1603057563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: btn_start
 --- !u!1 &1605553467
 GameObject:
   m_ObjectHideFlags: 0
@@ -7987,6 +8069,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1605553468}
   - component: {fileID: 1605553471}
+  - component: {fileID: 1605553472}
   - component: {fileID: 1605553470}
   - component: {fileID: 1605553469}
   m_Layer: 5
@@ -8135,6 +8218,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1605553467}
   m_CullTransparentMesh: 1
+--- !u!114 &1605553472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1605553467}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: input_player_four
 --- !u!1 &1605984551
 GameObject:
   m_ObjectHideFlags: 0
@@ -8249,6 +8345,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1630705622}
   - component: {fileID: 1630705624}
+  - component: {fileID: 1630705625}
   - component: {fileID: 1630705623}
   m_Layer: 5
   m_Name: Text (TMP)
@@ -8271,10 +8368,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1885161827}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 150, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1630705623
 MonoBehaviour:
@@ -8325,10 +8422,10 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
+  m_fontSize: 25.4
   m_fontSizeBase: 24
   m_fontWeight: 400
-  m_enableAutoSizing: 0
+  m_enableAutoSizing: 1
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
@@ -8378,6 +8475,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1630705621}
   m_CullTransparentMesh: 1
+--- !u!114 &1630705625
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1630705621}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: btn_multiplayer
 --- !u!1 &1646501569
 GameObject:
   m_ObjectHideFlags: 0
@@ -8882,10 +8992,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 946801967}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 310, y: -250}
+  m_SizeDelta: {x: 140, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1705873781
 MonoBehaviour:
@@ -9015,6 +9125,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1729825634}
   - component: {fileID: 1729825636}
+  - component: {fileID: 1729825637}
   - component: {fileID: 1729825635}
   m_Layer: 5
   m_Name: Text (TMP)
@@ -9037,10 +9148,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1375756008}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: 150, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1729825635
 MonoBehaviour:
@@ -9089,8 +9200,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 20
-  m_fontSizeBase: 20
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -9142,6 +9253,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1729825633}
   m_CullTransparentMesh: 1
+--- !u!114 &1729825637
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1729825633}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: btn_local
 --- !u!1 &1736786982
 GameObject:
   m_ObjectHideFlags: 0
@@ -9227,6 +9351,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1754986445}
   - component: {fileID: 1754986448}
+  - component: {fileID: 1754986449}
   - component: {fileID: 1754986447}
   - component: {fileID: 1754986446}
   m_Layer: 5
@@ -9375,6 +9500,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1754986444}
   m_CullTransparentMesh: 1
+--- !u!114 &1754986449
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1754986444}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: input_player_one
 --- !u!1 &1762090831
 GameObject:
   m_ObjectHideFlags: 0
@@ -10117,10 +10255,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 946801967}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 70, y: -250}
+  m_SizeDelta: {x: 140, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1904833722
 MonoBehaviour:
@@ -10887,10 +11025,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 946801967}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 310, y: -50}
+  m_SizeDelta: {x: 140, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2009357392
 MonoBehaviour:
@@ -10984,6 +11122,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2018148912}
   - component: {fileID: 2018148915}
+  - component: {fileID: 2018148916}
   - component: {fileID: 2018148914}
   - component: {fileID: 2018148913}
   m_Layer: 5
@@ -11132,6 +11271,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2018148911}
   m_CullTransparentMesh: 1
+--- !u!114 &2018148916
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2018148911}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: input_player_two
 --- !u!1 &2029010636
 GameObject:
   m_ObjectHideFlags: 0
@@ -11142,6 +11294,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2029010637}
   - component: {fileID: 2029010639}
+  - component: {fileID: 2029010640}
   - component: {fileID: 2029010638}
   m_Layer: 5
   m_Name: LocalTitle
@@ -11269,6 +11422,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2029010636}
   m_CullTransparentMesh: 1
+--- !u!114 &2029010640
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2029010636}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: title_local
 --- !u!1 &2069687299
 GameObject:
   m_ObjectHideFlags: 0
@@ -11431,6 +11597,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2102618585}
   - component: {fileID: 2102618587}
+  - component: {fileID: 2102618588}
   - component: {fileID: 2102618586}
   m_Layer: 5
   m_Name: Text (TMP)
@@ -11453,10 +11620,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 1011444431}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 80, y: -20}
-  m_SizeDelta: {x: 150, y: 30}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 150, y: 40}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2102618586
 MonoBehaviour:
@@ -11505,10 +11672,10 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
+  m_fontSize: 25.4
   m_fontSizeBase: 24
   m_fontWeight: 400
-  m_enableAutoSizing: 0
+  m_enableAutoSizing: 1
   m_fontSizeMin: 18
   m_fontSizeMax: 72
   m_fontStyle: 0
@@ -11558,6 +11725,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2102618584}
   m_CullTransparentMesh: 1
+--- !u!114 &2102618588
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2102618584}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77be9ab150271ce45a3d4cef06de725c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.LocalizedUIText
+  localizationKey: btn_singleplayer
 --- !u!1 &2124288579
 GameObject:
   m_ObjectHideFlags: 0
@@ -11666,10 +11846,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 946801967}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 550, y: -50}
+  m_SizeDelta: {x: 140, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2129362155
 MonoBehaviour:

@@ -23,12 +23,15 @@ namespace DiceGame.Controllers
         
         [Header("UI Controls - Language Selection")]
         [SerializeField] private Button closeLanguagePanelButton;
-        [SerializeField] private Button englishLanguageButton;
-        [SerializeField] private Button germanLanguageButton;
+        [SerializeField] private LanguageButtonMapping[] languageButtons;
+        [System.Serializable]
+        public struct LanguageButtonMapping
+        {
+            public SupportedLanguage language;
+            public Button button;
+            public Sprite flagSprite;
+        }
 
-        [Header("Language Assets")]
-        [SerializeField] private Sprite englishFlagSprite;
-        [SerializeField] private Sprite germanFlagSprite;
 
         private ISettingsService _settingsService;
         private ILocalizationService _localizationService;
@@ -61,12 +64,24 @@ namespace DiceGame.Controllers
             if (openLanguagePanelButton != null) openLanguagePanelButton.onClick.AddListener(ShowLanguageSelection);
             if (closeLanguagePanelButton != null) closeLanguagePanelButton.onClick.AddListener(ShowMainSettings);
 
-            // Language Selection
-            if (englishLanguageButton != null) englishLanguageButton.onClick.AddListener(() => SetLanguage(SupportedLanguage.English));
-            if (germanLanguageButton != null) germanLanguageButton.onClick.AddListener(() => SetLanguage(SupportedLanguage.German));
-            
-            // Wir abonnieren den Service, falls die Sprache von woanders geändert wird
+           foreach (var mapping in languageButtons)
+            {
+                if (mapping.button != null)
+                {
+                    // WICHTIG: Wir brauchen eine lokale Kopie der Sprache für den Lambda-Ausdruck
+                    SupportedLanguage lang = mapping.language;
+                    mapping.button.onClick.AddListener(() => SetLanguage(lang));
+                }
+            }
             _localizationService.OnLanguageChanged += HandleLanguageChanged;
+        }
+        private void OnEnable()
+        {
+            // Wenn das Settings-Fenster aktiviert wird, updaten wir sofort das Icon
+            if (_localizationService != null)
+            {
+                UpdateCurrentLanguageIcon(_localizationService.CurrentLanguage);
+            }
         }
 
         private void OnDestroy()
@@ -76,11 +91,21 @@ namespace DiceGame.Controllers
                 _localizationService.OnLanguageChanged -= HandleLanguageChanged;
             }
             
-            // Event Listener aufräumen
+            // Language Panel Navigation aufräumen
             if (openLanguagePanelButton != null) openLanguagePanelButton.onClick.RemoveAllListeners();
             if (closeLanguagePanelButton != null) closeLanguagePanelButton.onClick.RemoveAllListeners();
-            if (englishLanguageButton != null) englishLanguageButton.onClick.RemoveAllListeners();
-            if (germanLanguageButton != null) germanLanguageButton.onClick.RemoveAllListeners();
+
+            // NEU: Alle Buttons im Array dynamisch aufräumen
+            if (languageButtons != null)
+            {
+                foreach (var mapping in languageButtons)
+                {
+                    if (mapping.button != null)
+                    {
+                        mapping.button.onClick.RemoveAllListeners();
+                    }
+                }
+            }
         }
 
         // --- Panel Navigation ---
@@ -112,11 +137,19 @@ namespace DiceGame.Controllers
 
         private void UpdateCurrentLanguageIcon(SupportedLanguage currentLanguage)
         {
-            if (currentLanguageIcon != null)
+            Debug.Log($"[SETTINGS] Versuche Icon für {currentLanguage} zu setzen.");
+            if (currentLanguageIcon != null && languageButtons != null)
             {
-                currentLanguageIcon.sprite = currentLanguage == SupportedLanguage.English 
-                    ? englishFlagSprite 
-                    : germanFlagSprite;
+                foreach (var mapping in languageButtons)
+                {
+                    if (mapping.language == currentLanguage)
+                    {
+                        currentLanguageIcon.sprite = mapping.flagSprite;
+                        Debug.Log($"[SETTINGS] Icon erfolgreich auf {mapping.language} geändert.");
+                        return;
+                    }
+                }
+                Debug.LogWarning("[SETTINGS] Kein passendes Flaggen-Sprite im Array gefunden!");
             }
         }
 

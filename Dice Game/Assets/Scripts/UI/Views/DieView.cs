@@ -55,23 +55,47 @@ namespace DiceGame.UI.Views
 
         // --- NEU: Explizite Animations-Steuerung ---
         
-        // Wird beim Klicken aufgerufen
+        // Wird beim Klicken (oder durch den Presenter) aufgerufen
         public void PlayToggleAnimation(bool isNowHeld)
         {
             if (_animator == null) return;
 
             if (isNowHeld)
+            {
+                // 1. Zuerst den alten/falschen Trigger löschen!
+                _animator.ResetTrigger(ANIM_TRIGGER_DESELECT);
+                // 2. Dann den neuen setzen
                 _animator.SetTrigger(ANIM_TRIGGER_SELECT);
+            }
             else
+            {
+                // 1. Zuerst den alten/falschen Trigger löschen!
+                _animator.ResetTrigger(ANIM_TRIGGER_SELECT);
+                // 2. Dann den neuen setzen
                 _animator.SetTrigger(ANIM_TRIGGER_DESELECT);
+            }
         }
 
         // Wird vom Controller aufgerufen, wenn der Turn wechselt (ohne Animation!)
         public void ResetToIdleSilent()
         {
+            _isHeld = false; 
+
+            // Visuelles hartes Reset
+            if (_heldHighlight != null) _heldHighlight.SetActive(false);
+            if (_heldBoarder != null) _heldBoarder.SetActive(false);
+            transform.localScale = Vector3.one;
+
             if (_animator != null)
             {
-                _animator.SetTrigger(ANIM_TRIGGER_RESET);
+                // DIE NUKLEARE OPTION: 
+                // Rebind() löscht sofort alle aktiven Trigger, bricht alle laufenden 
+                // Transitionen ab und setzt den Animator knallhart auf den Default-State 
+                // (Idle) des Layer 0 zurück. Keine Geister-Trigger können das überleben!
+                _animator.Rebind();
+                
+                // Zwingt Unity, dieses Rebind noch im exakt selben Frame zu berechnen
+                _animator.Update(0f);
             }
         }
 

@@ -18,6 +18,7 @@ namespace DiceGame.Core.Systems
         // --- EVENTS FÜR DIE UI ---
         // Die UI abonniert diese Events, um Grafiken und Animationen zu steuern
         public event Action<Player> OnTurnStarted;
+        public event Action<Player> OnTurnEnded;
         public event Action<DiceCup> OnDiceRolled;
         public event Action<int, bool> OnDieStateChanged; // (dieIndex, isHeld)
         public event Action<Player, ScoreCategory, int> OnScoreApplied;
@@ -120,9 +121,19 @@ namespace DiceGame.Core.Systems
             }
             else
             {
-                CurrentPlayerIndex = (CurrentPlayerIndex + 1) % Players.Count;
-                StartTurn();
+                // HIER IST DIE ÄNDERUNG: 
+                // Wir starten NICHT mehr sofort den neuen Zug!
+                // Wir rufen das Event auf, damit der GameController seine Pause starten kann.
+                OnTurnEnded?.Invoke(CurrentPlayer);
             }
+        }
+
+        // NEU: Diese Methode ist public. Der GameController ruft sie auf, 
+        // sobald seine Pause (Coroutine) und die Animationen fertig sind!
+        public void AdvanceToNextTurn()
+        {
+            CurrentPlayerIndex = (CurrentPlayerIndex + 1) % Players.Count;
+            StartTurn();
         }
     }
 }

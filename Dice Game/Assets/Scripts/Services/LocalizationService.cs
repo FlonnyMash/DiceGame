@@ -50,7 +50,8 @@ namespace DiceGame.Services
 
         private void LoadLanguage(SupportedLanguage language)
         {
-            string langCode = (language == SupportedLanguage.German) ? "de" : "en";
+            string langCode = GetLangCode(language);
+            
             string filePath = Path.Combine(Application.streamingAssetsPath, "Localization", $"{langCode}.json");
 
             if (File.Exists(filePath))
@@ -72,6 +73,20 @@ namespace DiceGame.Services
                 Debug.LogError($"[Localization] File not found: {filePath}");
                 _translations = new Dictionary<string, string>();
             }
+        }
+
+        private string GetLangCode(SupportedLanguage language)
+        {
+            return language switch
+            {
+                SupportedLanguage.German => "de",
+                SupportedLanguage.English => "en",
+                SupportedLanguage.Spanish => "es",
+                SupportedLanguage.French => "fr",
+                SupportedLanguage.Italian => "it",
+                SupportedLanguage.Portuguese => "pt",
+                _ => "en" // Fallback
+            };
         }
 
         public string GetText(string key, params object[] args)

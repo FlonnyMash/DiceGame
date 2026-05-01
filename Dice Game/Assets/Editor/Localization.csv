@@ -1,34 +1,49 @@
-﻿Key;en;de
-menu_title;Dice Game;Dice Game
-btn_play_local;Local;Lokal
-title_settings;Settings;Einstellungen
-title_languages;Languages;Sprachen
-title_audio;Sound;Audio
-audio_master;Master Volume;Gesamtlautstärke
-audio_music;Music;Musik
-audio_sfx;Sound Effects;Sound Effekte
-btn_close;Close;Schließen
-cat_ones;Ones;Einer
-cat_twos;Twos;Zweier
-cat_threes;Threes;Dreier
-cat_fours;Fours;Vierer
-cat_fives;Fives;Fünfer
-cat_sixes;Sixes;Sechser
-cat_threeofakind;Three Of Akind;Drilling
-cat_fourofakind;Four Of Akind;Vierling
-cat_fullhouse;Full House;Full House
-cat_smallstraight;Small Straight;Kleine Straße
-cat_largestraight;Large Straight;Große Straße
-cat_nicerdicer;Nicer Dicer;Nicer Dicer
-cat_chance;Chance;Chance
-you_vs_bot;You vs <color=red>Bot</color>;Du gegen <color=red> Bot</color>
-players_count;{0} Players;{0} Spieler
-new_record;New Record: {0}!;Neuer Rekord: {0}!
-high_score;High Score: {0};High Score: {0}
-turn_indicator;Turn: {0};Am Zug: {0}
-claim_bonus;CLAIM BONUS!;BONUS HOLEN!
-bonus_claimed;Claimed!;Eingesammelt!
-bonus_progress;Bonus {0}/{1};Bonus {0}/{1}
-game_over;Game Over;Spiel vorbei
-your_score;Your Score: {0};Punktzahl:
-pass_device;{0} is next!\nPass the device.;{0} ist dran!\nGerät weitergeben.
+﻿Key;en;de;es;fr;it;pt
+menu_title;Yatzie;Kniffel;;;;
+btn_play_local;Local;Lokal;;;;
+title_settings;Settings;Einstellungen;;;;
+title_languages;Languages;Sprachen;;;;
+title_audio;Sound;Audio;;;;
+audio_master;Master Volume;Gesamtlautstärke;;;;
+audio_music;Music;Musik;;;;
+audio_sfx;Sound Effects;Sound Effekte;;;;
+btn_close;Close;Schließen;;;;
+cat_ones;Ones;Einer;;;;
+cat_twos;Twos;Zweier;;;;
+cat_threes;Threes;Dreier;;;;
+cat_fours;Fours;Vierer;;;;
+cat_fives;Fives;Fünfer;;;;
+cat_sixes;Sixes;Sechser;;;;
+cat_threeofakind;Three Of Akind;Drilling;;;;
+cat_fourofakind;Four Of Akind;Vierling;;;;
+cat_fullhouse;Full House;Full House;;;;
+cat_smallstraight;Small Straight;Kleine Straße;;;;
+cat_largestraight;Large Straight;Große Straße;;;;
+cat_nicerdicer;Nicer Dicer;Nicer Dicer;;;;
+cat_chance;Chance;Chance;;;;
+you_vs_bot;You vs <color=red>Bot</color>;Du gegen <color=red> Bot</color>;;;;
+players_count;{0} Players;{0} Spieler;;;;
+new_record;New Record: {0}!;Neuer Rekord: {0}!;;;;
+high_score;High Score: {0};High Score: {0};;;;
+turn_indicator;Turn: {0};Am Zug: {0};;;;
+claim_bonus;CLAIM BONUS!;BONUS HOLEN!;;;;
+bonus_claimed;Claimed!;Eingesammelt!;;;;
+bonus_progress;Bonus {0}/{1};Bonus {0}/{1};;;;
+game_over;Game Over;Spiel vorbei;;;;
+your_score;Your Score: {0};Punktzahl:;;;;
+pass_device;{0} is next!\nPass the device.;{0} ist dran!\nGerät weitergeben.;;;;
+btn_local;Local;Lokal;;;;
+btn_private;Private;Privat;;;;
+btn_online;Online;Online;;;;
+btn_multiplayer;Multiplayer;Mehrspieler;;;;
+btn_singleplayer;Singleplayer;Einzelspieler;;;;
+btn_skip_bot;Skip;Überspringen;;;;
+total_points;TOTAL;PUNKTE;;;;
+title_score;SCORE;PUNKTZAHL;;;;
+title_local;Local;Lokal;;;;
+btn_start;Start;Start;;;;
+input_player_one;Player 1;Spieler 1;;;;
+input_player_two;Player 2;Spieler 2;;;;
+input_player_three;Player 3;Spieler 3;;;;
+input_player_four;Player 4;Spieler 4;;;;
+btn_main_menu;Main Menu;Hauptmenü;;;;

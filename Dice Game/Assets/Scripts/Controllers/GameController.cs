@@ -46,6 +46,8 @@ namespace DiceGame.Controllers
         private LocalPlayerInput _localInput;
         private Dictionary<Player, IPlayerInput> _playerInputs;
         private Player _previousPlayer;
+        private bool _isTransitioningTurn = false;
+        private bool _isDiceRolling = false;
 
         private void Start()
         {
@@ -137,6 +139,7 @@ namespace DiceGame.Controllers
             _matchManager.OnScoreApplied += HandleScoreApplied;
             _matchManager.OnBonusClaimed += HandleBonusClaimed;
             _matchManager.OnGameOver += HandleGameOver;
+            _matchManager.OnTurnEnded += HandleTurnEnded;
         }
 
         // ==========================================
@@ -160,6 +163,7 @@ namespace DiceGame.Controllers
                 bool isNextHuman = !player.IsBot;
                 if (wasHuman && isNextHuman) showPassDevice = true;
             }
+            
 
             if (showPassDevice)
             {
@@ -172,6 +176,35 @@ namespace DiceGame.Controllers
             }
 
             _previousPlayer = player;
+        }
+        
+        // 1. Der Parameter (Player playerWhoJustFinished) MUSS in die Klammern!
+        private void HandleTurnEnded(Player playerWhoJustFinished)
+        {
+            // Wir nutzen exakt den Variablennamen aus Zeile 49!
+            if (_isTransitioningTurn) return; 
+            
+            _isTransitioningTurn = true;
+            
+            // 2. Wir geben das Paket an die Coroutine weiter
+            StartCoroutine(TurnTransitionRoutine(playerWhoJustFinished));
+        }
+
+        // 3. Auch hier MUSS der Parameter in die Klammern!
+        private System.Collections.IEnumerator TurnTransitionRoutine(Player playerWhoJustFinished)
+        {
+            float delay = playerWhoJustFinished.IsBot ? 2.5f : 1.5f;
+            yield return new WaitForSeconds(delay);
+
+            ResetAllDiceVisuals();
+
+            if (_matchManager != null)
+            {
+                _matchManager.AdvanceToNextTurn();
+            }
+
+            // 4. Türsteher wieder ausschalten (exakter Name aus Zeile 49!)
+            _isTransitioningTurn = false; 
         }
 
         private void StartVisualTurn(Player player)
@@ -212,11 +245,15 @@ namespace DiceGame.Controllers
 
         private IEnumerator RollAnimationRoutine(DiceCup cup)
         {
+            _isDiceRolling = true;
+            
             if (_diceCanvasGroup != null) _diceCanvasGroup.blocksRaycasts = false;
             _rollButton.interactable = false;
 
             bool allDiceHeld = cup.Dice.All(die => die.IsHeld);
-            if (!allDiceHeld && _rollDiceSounds != null && _rollDiceSounds.Length > 0)
+            bool isHuman = !_matchManager.CurrentPlayer.IsBot;
+
+            if (!allDiceHeld && isHuman && _rollDiceSounds != null && _rollDiceSounds.Length > 0)
             {
                 int randomIndex = UnityEngine.Random.Range(0, _rollDiceSounds.Length);
                 AudioManager.Instance.PlaySFX(_rollDiceSounds[randomIndex]);
@@ -240,6 +277,7 @@ namespace DiceGame.Controllers
                 _diceCanvasGroup.blocksRaycasts = true;
             }
 
+            _isDiceRolling = false;
             UpdatePotentialScores(cup, _matchManager.CurrentPlayer);
         }
 
@@ -252,6 +290,19 @@ namespace DiceGame.Controllers
 
         private void HandleScoreApplied(Player player, ScoreCategory category, int points)
         {
+            // Wir starten eine kleine Hilfs-Routine, die wartet, bis die Würfel liegen
+            StartCoroutine(WaitAndApplyScore(player, category, points));
+        }
+
+        private IEnumerator WaitAndApplyScore(Player player, ScoreCategory category, int points)
+        {
+            // Warte so lange, wie die Würfel noch in Bewegung sind
+            while (_isDiceRolling)
+            {
+                yield return null; 
+            }
+
+            // Erst JETZT werden die Punkte visuell eingetragen
             if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(_scoreCategorySound);
 
             _scoreCardView.SetFinalScore(category, points);
@@ -263,15 +314,18 @@ namespace DiceGame.Controllers
             );
 
             UpdateMultiplayerScoreTracker();
-            StartCoroutine(TurnTransitionRoutine());
         }
 
-        private IEnumerator TurnTransitionRoutine()
+
+        private void ResetAllDiceVisuals()
         {
-            SetUIInteractable(false);
-            // Ein kurzer Delay, damit man sieht, was eingetragen wurde, bevor das Board umschaltet
-            yield return new WaitForSeconds(_matchManager.Players.Count > 1 ? 2.0f : 0.5f);
-            // Die Kernlogik hat in der Zwischenzeit schon weitergeschaltet
+            if (_dieViews == null) return;
+
+            // Geht alle deine Würfel durch und setzt sie lautlos zurück
+            for (int i = 0; i < _dieViews.Count; i++)
+            {
+                _dieViews[i].ResetToIdleSilent();
+            }
         }
 
         private void HandleBonusClaimed(Player player)
@@ -431,6 +485,10 @@ namespace DiceGame.Controllers
         {
             if (_rollButton != null) _rollButton.onClick.RemoveAllListeners();
             LocalizationService.Instance.OnLanguageChanged -= HandleLanguageChanged;
+            if (_matchManager != null)
+            {
+                _matchManager.OnTurnEnded -= HandleTurnEnded;
+            }
         }
 
         private void HandleLanguageChanged()

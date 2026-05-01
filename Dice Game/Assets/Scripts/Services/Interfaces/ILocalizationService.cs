@@ -6,7 +6,11 @@ namespace DiceGame.Services.Interfaces
     public enum SupportedLanguage 
     { 
         English, 
-        German 
+        German, 
+        Spanish,
+        French,
+        Italian,
+        Portuguese
     }
 
     public interface ILocalizationService
