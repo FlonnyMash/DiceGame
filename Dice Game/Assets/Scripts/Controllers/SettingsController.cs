@@ -2,127 +2,127 @@ using UnityEngine;
 using UnityEngine.UI;
 using DiceGame.Core.Models;
 using DiceGame.Services.Interfaces;
-using DiceGame.Services; 
+using DiceGame.Services;
 
 namespace DiceGame.Controllers
 {
     public class SettingsController : MonoBehaviour
     {
-        [Header("UI Toggles")]
-        [SerializeField] private Toggle masterToggle; 
+        [Header("UI Containers")]
+        [SerializeField] private GameObject mainSettingsContainer;
+        [SerializeField] private GameObject languageSelectionContainer;
+
+        [Header("UI Controls - Audio")]
+        [SerializeField] private Toggle masterToggle;
         [SerializeField] private Toggle musicToggle;
         [SerializeField] private Toggle sfxToggle;
+        
+        [Header("UI Controls - Language Main")]
+        [SerializeField] private Button openLanguagePanelButton;
+        [SerializeField] private Image currentLanguageIcon;
+        
+        [Header("UI Controls - Language Selection")]
+        [SerializeField] private Button closeLanguagePanelButton;
+        [SerializeField] private Button englishLanguageButton;
+        [SerializeField] private Button germanLanguageButton;
 
-        [Header("Master Icons")]
-        [SerializeField] private Image masterIconImage; 
-        [SerializeField] private Sprite masterOnSprite;
-        [SerializeField] private Sprite masterOffSprite;
-
-        [Header("Music Icons")]
-        [SerializeField] private Image musicIconImage; 
-        [SerializeField] private Sprite musicOnSprite;
-        [SerializeField] private Sprite musicOffSprite;
-
-        [Header("SFX Icons")]
-        [SerializeField] private Image sfxIconImage; 
-        [SerializeField] private Sprite sfxOnSprite;
-        [SerializeField] private Sprite sfxOffSprite;
+        [Header("Language Assets")]
+        [SerializeField] private Sprite englishFlagSprite;
+        [SerializeField] private Sprite germanFlagSprite;
 
         private ISettingsService _settingsService;
+        private ILocalizationService _localizationService;
         private AppSettings _currentSettings;
 
         private void Awake()
         {
-            _settingsService = PlayerPrefsSettingsService.Instance; 
+            _settingsService = PlayerPrefsSettingsService.Instance;
+            _localizationService = LocalizationService.Instance;
         }
 
         private void Start()
         {
             _currentSettings = _settingsService.LoadSettings();
 
-            // UI-Zustände initial setzen
+            // Audio initialisieren
             if (musicToggle != null) musicToggle.SetIsOnWithoutNotify(_currentSettings.IsMusicOn);
             if (sfxToggle != null) sfxToggle.SetIsOnWithoutNotify(_currentSettings.IsSfxOn);
-
-            // Master ist an, wenn Musik ODER SFX an sind
-            bool isAnyOn = _currentSettings.IsMusicOn || _currentSettings.IsSfxOn;
-            if (masterToggle != null) masterToggle.SetIsOnWithoutNotify(isAnyOn);
-
-            // Icons beim Start setzen
-            UpdateIcons();
+            
+            // UI Status initialisieren
+            ShowMainSettings();
+            UpdateCurrentLanguageIcon(_localizationService.CurrentLanguage);
 
             // Listener hinzufügen
             if (masterToggle != null) masterToggle.onValueChanged.AddListener(OnMasterToggled);
             if (musicToggle != null) musicToggle.onValueChanged.AddListener(OnMusicToggled);
             if (sfxToggle != null) sfxToggle.onValueChanged.AddListener(OnSfxToggled);
+
+            // Language Panel Navigation
+            if (openLanguagePanelButton != null) openLanguagePanelButton.onClick.AddListener(ShowLanguageSelection);
+            if (closeLanguagePanelButton != null) closeLanguagePanelButton.onClick.AddListener(ShowMainSettings);
+
+            // Language Selection
+            if (englishLanguageButton != null) englishLanguageButton.onClick.AddListener(() => SetLanguage(SupportedLanguage.English));
+            if (germanLanguageButton != null) germanLanguageButton.onClick.AddListener(() => SetLanguage(SupportedLanguage.German));
+            
+            // Wir abonnieren den Service, falls die Sprache von woanders geändert wird
+            _localizationService.OnLanguageChanged += HandleLanguageChanged;
         }
 
-        private void OnMasterToggled(bool isOn)
+        private void OnDestroy()
         {
-            _currentSettings.IsMusicOn = isOn;
-            _currentSettings.IsSfxOn = isOn;
-
-            if (musicToggle != null) musicToggle.SetIsOnWithoutNotify(isOn);
-            if (sfxToggle != null) sfxToggle.SetIsOnWithoutNotify(isOn);
-
-            UpdateIcons();
-            _settingsService.SaveSettings(_currentSettings);
-        }
-
-        private void OnMusicToggled(bool isOn)
-        {
-            _currentSettings.IsMusicOn = isOn;
-            CheckMasterToggleState();
-            UpdateIcons();
-            _settingsService.SaveSettings(_currentSettings);
-        }
-
-        private void OnSfxToggled(bool isOn)
-        {
-            _currentSettings.IsSfxOn = isOn;
-            CheckMasterToggleState();
-            UpdateIcons();
-            _settingsService.SaveSettings(_currentSettings);
-        }
-
-        private void CheckMasterToggleState()
-        {
-            if (masterToggle == null) return;
-            bool isAnyOn = _currentSettings.IsMusicOn || _currentSettings.IsSfxOn;
-            masterToggle.SetIsOnWithoutNotify(isAnyOn);
-        }
-
-        private void UpdateIcons()
-        {
-            // 1. MASTER ICON
-            if (masterIconImage != null)
+            if (_localizationService != null)
             {
-                bool isAnyOn = _currentSettings.IsMusicOn || _currentSettings.IsSfxOn;
-                masterIconImage.sprite = isAnyOn ? masterOnSprite : masterOffSprite;
-                
-                // Alpha-Sicherung
-                Color c = masterIconImage.color;
-                c.a = 1f;
-                masterIconImage.color = c;
+                _localizationService.OnLanguageChanged -= HandleLanguageChanged;
             }
+            
+            // Event Listener aufräumen
+            if (openLanguagePanelButton != null) openLanguagePanelButton.onClick.RemoveAllListeners();
+            if (closeLanguagePanelButton != null) closeLanguagePanelButton.onClick.RemoveAllListeners();
+            if (englishLanguageButton != null) englishLanguageButton.onClick.RemoveAllListeners();
+            if (germanLanguageButton != null) germanLanguageButton.onClick.RemoveAllListeners();
+        }
 
-            // 2. MUSIC ICON
-            if (musicIconImage != null)
-            {
-                musicIconImage.sprite = _currentSettings.IsMusicOn ? musicOnSprite : musicOffSprite;
-                Color c = musicIconImage.color;
-                c.a = 1f;
-                musicIconImage.color = c;
-            }
+        // --- Panel Navigation ---
 
-            // 3. SFX ICON
-            if (sfxIconImage != null)
+        private void ShowMainSettings()
+        {
+            if (mainSettingsContainer != null) mainSettingsContainer.SetActive(true);
+            if (languageSelectionContainer != null) languageSelectionContainer.SetActive(false);
+        }
+
+        private void ShowLanguageSelection()
+        {
+            if (mainSettingsContainer != null) mainSettingsContainer.SetActive(false);
+            if (languageSelectionContainer != null) languageSelectionContainer.SetActive(true);
+        }
+
+        // --- Language Logic ---
+
+        private void SetLanguage(SupportedLanguage newLanguage)
+        {
+            _localizationService.SetLanguage(newLanguage);
+            ShowMainSettings(); // Panel schließen nach Auswahl
+        }
+
+        private void HandleLanguageChanged()
+        {
+            UpdateCurrentLanguageIcon(_localizationService.CurrentLanguage);
+        }
+
+        private void UpdateCurrentLanguageIcon(SupportedLanguage currentLanguage)
+        {
+            if (currentLanguageIcon != null)
             {
-                sfxIconImage.sprite = _currentSettings.IsSfxOn ? sfxOnSprite : sfxOffSprite;
-                Color c = sfxIconImage.color;
-                c.a = 1f;
-                sfxIconImage.color = c;
+                currentLanguageIcon.sprite = currentLanguage == SupportedLanguage.English 
+                    ? englishFlagSprite 
+                    : germanFlagSprite;
             }
         }
+
+        // --- Audio Logic (Placeholder) ---
+        private void OnMasterToggled(bool isOn) { /* ... */ }
+        private void OnMusicToggled(bool isOn) { /* ... */ }
+        private void OnSfxToggled(bool isOn) { /* ... */ }
     }
 }

@@ -8,8 +8,11 @@ using TMPro;
 using DiceGame.Core.Models;
 using DiceGame.Core.Rules;
 using DiceGame.UI.Views;
-using DiceGame.Core.AI;
 using DiceGame.Audio;
+using DiceGame.Core.Systems;
+using DiceGame.Core.Inputs;
+using DiceGame.Core.Interfaces;
+using DiceGame.Services;
 
 namespace DiceGame.Controllers
 {
@@ -23,508 +26,356 @@ namespace DiceGame.Controllers
         [SerializeField] private ScoreCardView _scoreCardView;
         [SerializeField] private CanvasGroup _scoreCardCanvasGroup;
         [SerializeField] private GameOverView _gameOverView;
-        [SerializeField] private TMPro.TextMeshProUGUI _currentPlayerNameText;
+        [SerializeField] private TextMeshProUGUI _currentPlayerNameText;
         [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
         [SerializeField] private Button _skipBotButton;
-        [SerializeField] private BotController _botController;
+        
+        // _botController wurde entfernt, wir nutzen jetzt das Input-System
 
         [Header("UI Panels")]
         [SerializeField] private GameObject _settingsPanel;
+        [SerializeField] private Animator _settingsAnimator;
 
         [Header("Audio Clips")]
         [SerializeField] private AudioClip[] _rollDiceSounds;
         [SerializeField] private AudioClip _scoreCategorySound;
         [SerializeField] private AudioClip _bonusClaimSound;
 
-        
-        // Core Models
-        public List<DieView> DieViews => _dieViews;
-        private DiceCup _diceCup;
-        public DiceCup DiceCup => _diceCup;
-        private List<Player> _players = new List<Player>();
-        private int _currentPlayerIndex = 0;
-        private bool _isEndingTurn = false;
-
-        public Player CurrentPlayer => _players[_currentPlayerIndex];
-        public event System.Action OnTurnStarted;
-
-
+        // --- CORE SYSTEM REFERENZEN ---
+        private MatchManager _matchManager;
+        private LocalPlayerInput _localInput;
+        private Dictionary<Player, IPlayerInput> _playerInputs;
+        private Player _previousPlayer;
 
         private void Start()
         {
             _settingsPanel.SetActive(false);
-            _diceCup = new DiceCup();
-            
-            SetupGame(MatchData.PlayerNames);
+            if (_passDeviceView != null) _passDeviceView.Hide();
+            if (_gameOverView != null) _gameOverView.Hide();
 
-            if (_skipBotButton != null)
+            SetupCoreGame();
+            BindUIEvents();
+            BindManagerEvents();
+
+            // Spiel starten!
+            _matchManager.StartGame();
+
+            // Abonniere Sprachwechsel, um UI sofort zu aktualisieren
+            LocalizationService.Instance.OnLanguageChanged += HandleLanguageChanged;
+        }
+
+        private void SetupCoreGame()
+        {
+            // 1. Spieler-Modelle aus dem Main Menu laden
+            List<Player> players = new List<Player>();
+            foreach (var name in MatchData.PlayerNames)
             {
-                _skipBotButton.onClick.AddListener(() => _botController.SkipBotTurn());
+                // Erkennen, ob es sich um den Bot handelt
+                bool isBot = name.Contains("Bot");
+                players.Add(new Player(name, isBot));
             }
 
-            // Würfel-Events verbinden
+            // 2. Den MatchManager instanziieren (Reine C#-Logik!)
+            _matchManager = new MatchManager(players);
+
+            // 3. Inputs dynamisch erstellen und zuweisen
+            _playerInputs = new Dictionary<Player, IPlayerInput>();
+            _localInput = gameObject.AddComponent<LocalPlayerInput>(); // Ein Input für alle Menschen
+
+            foreach (var p in players)
+            {
+                if (p.IsBot)
+                {
+                    _playerInputs.Add(p, gameObject.AddComponent<BotPlayerInput>());
+                }
+                else
+                {
+                    _playerInputs.Add(p, _localInput);
+                }
+            }
+        }
+
+        private void BindUIEvents()
+        {
+            // UI -> Local Input (Wir leiten Klicks nur noch an den Input weiter!)
+            _rollButton.onClick.AddListener(() => _localInput.TriggerRoll());
+            
+            _scoreCardView.Initialize();
+            _scoreCardView.OnCategoryClicked += (cat) => _localInput.TriggerCategorySelected(cat);
+            _scoreCardView.OnBonusClaimClicked += () => _localInput.TriggerBonusClaimed();
+
             for (int i = 0; i < _dieViews.Count; i++)
             {
                 int index = i;
                 _dieViews[i].Initialize(index);
-                _dieViews[i].OnDieClicked += HandleDieClicked;
-                _diceCup.Dice[i].OnStateChanged += (die) => _dieViews[index].UpdateView(die.Value, die.IsHeld);
+                _dieViews[i].OnDieClicked += (idx) => _localInput.TriggerToggleHold(idx);
             }
 
-            // ScoreCard-Events verbinden
-            _scoreCardView.OnCategoryClicked += HandleCategoryClicked;
-            _scoreCardView.OnBonusClaimClicked += HandleBonusClaimed;
-
-            // Roll-Button verbinden
-            _rollButton.onClick.AddListener(OnRollButtonClicked);
-            
-            // GameOver Events verbinden
-            if (_gameOverView != null)
+            if (_skipBotButton != null)
             {
-                _gameOverView.OnRestartClicked += HandleRestart;
-                _gameOverView.OnMainMenuClicked += HandleMainMenu;
-                _gameOverView.Hide();
+                _skipBotButton.onClick.AddListener(HandleSkipBotClicked);
             }
 
             if (_passDeviceView != null)
             {
                 _passDeviceView.OnReadyClicked += HandlePlayerReady;
-                _passDeviceView.Hide(); // Am Anfang verstecken
-            }
-        }
-
-        public void SetupGame(List<string> names)
-        {
-            _players.Clear();
-            foreach (var name in names)
-            {
-                _players.Add(new Player(name));
-            }
-            _currentPlayerIndex = 0;
-            
-            _scoreCardView.Initialize(); 
-            RefreshUIForCurrentPlayer();
-            StartNewTurn();
-            // Prüfen, ob überhaupt ein Bot mitspielt
-            bool botIsPresent = names.Contains("Bot");
-            
-            // BotController finden und nur aktivieren, wenn nötig
-            var botCtrl = Object.FindAnyObjectByType<BotController>(FindObjectsInactive.Include);
-            if (botCtrl != null)
-            {
-                botCtrl.gameObject.SetActive(botIsPresent);
-            }
-        }
-
-        public void OnRollButtonClicked()
-        {
-            // Erst normal würfeln (Daten ändern sich im Hintergrund sofort)
-            bool success = _diceCup.Roll();
-            if (success)
-            {
-                // Dann die Animation starten
-                StartCoroutine(HandleRollAnimation());
-            }
-        }
-
-        private IEnumerator HandleRollAnimation()
-        { 
-            if (_diceCanvasGroup != null)
-            {
-                _diceCanvasGroup.blocksRaycasts = false; // Maus geht einfach durch
-            }
-            
-            // 1. Buttons sperren
-            _rollButton.interactable = false;
-            
-            // NEU: Wir prüfen, ob ALLE Würfel im Becher gehalten werden
-            bool allDiceHeld = _diceCup.Dice.All(die => die.IsHeld);
-
-            // Sound NUR abspielen, wenn NICHT alle gehalten werden!
-            if (!allDiceHeld)
-            {
-                if (_rollDiceSounds != null && _rollDiceSounds.Length > 0)
-                {
-                    int randomIndex = UnityEngine.Random.Range(0, _rollDiceSounds.Length);
-                    AudioClip selectedClip = _rollDiceSounds[randomIndex];
-                    DiceGame.Audio.AudioManager.Instance.PlaySFX(selectedClip);
-                }
             }
 
-            // Deine eingestellte Dauer von 1.5 Sekunden
-            float duration = 1.5f; 
-
-            // 2. Allen Würfeln sagen, sie sollen wackeln (mit Index-Schleife)
-            for (int i = 0; i < _diceCup.Dice.Count; i++)
-            {
-                // Wir übergeben den finalen Wert, damit der Würfel weiß, wo er stoppen muss.
-                // Ob er wackelt, entscheidet er selbst (isHeld Check).
-                _dieViews[i].AnimateRoll(_diceCup.Dice[i].Value, duration);
-            }
-
-            // 3. Der Controller wartet auf die Animation
-            yield return new WaitForSeconds(duration);
-
-            
-            // Nur freigeben, wenn noch Würfe übrig sind UND ein Mensch spielt
-            if (_diceCup.RollsLeft > 0 && CurrentPlayer.Name != "Bot")
-            {
-                _rollButton.interactable = true;
-            }
-
-            if (_diceCanvasGroup != null)
-            {
-                // WICHTIG: Nur entsperren, wenn ein Mensch dran ist!
-                if (CurrentPlayer.Name != "Bot")
-                {
-                    _diceCanvasGroup.blocksRaycasts = true;
-                }
-            }
-
-            // 4. Animation fertig -> Punkte berechnen und Buttons freigeben
-            UpdatePotentialScores();
-
-        }
-
-        private void HandleDieClicked(int dieIndex)
-        {
-            // Input-Ebene: Der Türsteher blockiert echte Klicks, wenn der Bot dran ist
-            if (CurrentPlayer.Name == "Bot") return;
-            
-            // Wenn der Spieler dran ist, leiten wir die Anfrage an die zentrale Logik weiter
-            ToggleDieState(dieIndex);
-        }
-
-        // --- NEU: Diese Methode kann vom Spieler UND vom Bot aufgerufen werden ---
-        public void ToggleDieState(int dieIndex)
-        {
-            // Logik-Ebene: Darf überhaupt gehalten werden?
-            if (_diceCup.RollsLeft < DiceCup.MaxRolls)
-            {
-                // 1. Datenmodell aktualisieren
-                _diceCup.Dice[dieIndex].ToggleHold();
-
-                // 2. Zustand abfragen
-                int currentValue = _diceCup.Dice[dieIndex].Value;
-                bool isNowHeld = _diceCup.Dice[dieIndex].IsHeld;
-
-                // 3. UI synchronisieren (Bilder und Animation)
-                _dieViews[dieIndex].UpdateView(currentValue, isNowHeld);
-                _dieViews[dieIndex].PlayToggleAnimation(isNowHeld);
-            }
-        }
-
-        public void HandleCategoryClicked(ScoreCategory category)
-        {
-            if (_diceCup.RollsLeft == DiceCup.MaxRolls || _isEndingTurn) return; 
-
-            int points = ScoreCalculator.CalculateScore(_diceCup.Dice, category);
-
-            if (CurrentPlayer.ScoreCard.SetScore(category, points))
-            {
-                // Sound abspielen
-                if (DiceGame.Audio.AudioManager.Instance != null)
-                {
-                    DiceGame.Audio.AudioManager.Instance.PlaySFX(_scoreCategorySound);
-                }
-
-                _scoreCardView.SetFinalScore(category, points);
-                _scoreCardView.ClearAllPotentials();
-                _scoreCardView.UpdateTotals(
-                    CurrentPlayer.ScoreCard.UpperSectionRaw, 
-                    CurrentPlayer.ScoreCard.UpperSectionBonus, 
-                    CurrentPlayer.ScoreCard.GrandTotal
-                );
-
-                UpdateMultiplayerScoreTracker();
-
-                // NEU: Wir übergeben der Coroutine, ob sie warten soll.
-                // Wir warten nur, wenn mehr als 1 Spieler dabei ist.
-                bool shouldWait = _players.Count > 1;
-                StartCoroutine(EndTurnSequence(shouldWait));
-            }
-        }
-
-        private System.Collections.IEnumerator EndTurnSequence(bool wait)
-        {
-            _isEndingTurn = true;
-            _rollButton.interactable = false; 
-
-            // Nur pausieren, wenn wir im Multiplayer sind
-            if (wait)
-            {
-                yield return new WaitForSeconds(2.0f);
-            }
-            else
-            {
-                // Im Singleplayer nur einen ganz kurzen Moment warten (z.B. 0.2s),
-                // damit das UI Zeit hat, die Zahlen anzuzeigen, bevor alles zurückgesetzt wird.
-                yield return new WaitForSeconds(0.2f);
-            }
-
-            _isEndingTurn = false;
-
-            // Button nur freigeben, wenn der aktuelle (oder nächste) Spieler kein Bot ist
-            if (CurrentPlayer.Name != "Bot")
-            {
-                _rollButton.interactable = true; 
-            }
-                        
-            CheckGameState();
-        }
-
-        private void CheckGameState()
-        {
-            if (_players.All(p => p.ScoreCard.IsComplete))
-            {
-                EndGame();
-            }
-            else
-            {
-                // Wir merken uns, wer gerade dran WAR
-                int previousPlayerIndex = _currentPlayerIndex;
-                
-                // Wir schalten zum NÄCHSTEN Spieler um
-                _currentPlayerIndex = (_currentPlayerIndex + 1) % _players.Count;
-                
-                // Logik-Check:
-                // Ein "Pass Device" macht nur Sinn, wenn:
-                // 1. Mehr als 1 Spieler im Spiel ist.
-                // 2. Der Spieler, der gerade fertig wurde, KEIN Bot war.
-                // 3. Der Spieler, der jetzt dran kommt, KEIN Bot ist.
-                bool wasHuman = _players[previousPlayerIndex].Name != "Bot";
-                bool isNextHuman = CurrentPlayer.Name != "Bot";
-
-                if (_players.Count > 1 && wasHuman && isNextHuman)
-                {
-                    _passDeviceView.Show(CurrentPlayer.Name);
-                }
-                else
-                {
-                    // Wenn ein Bot im Spiel ist oder es Singleplayer ist, 
-                    // geht es sofort ohne Overlay weiter.
-                    SetUIInteractable(CurrentPlayer.Name != "Bot");
-                    HandlePlayerReady();
-                }
-            }
-        }
-
-        private void UpdatePotentialScores()
-        {
-            foreach (ScoreCategory category in System.Enum.GetValues(typeof(ScoreCategory)))
-            {
-                if (!CurrentPlayer.ScoreCard.IsCategoryFilled(category))
-                {
-                    int potentialScore = ScoreCalculator.CalculateScore(_diceCup.Dice, category);
-                    _scoreCardView.ShowPotentialScore(category, potentialScore);
-                }
-            }
-        }
-
-        private void StartNewTurn()
-        {
-            // 1. Datenmodell aufräumen (Würfel entsperren, Wurf-Zähler auf 0, etc.)
-            _diceCup.ResetTurn();
-
-            // --- NEU: Die Würfel-UI für den neuen Zug lautlos zurücksetzen ---
-            // (Ich gehe davon aus, dass dein Array mit den Views _dieViews heißt)
-            if (_dieViews != null)
-            {
-                for (int i = 0; i < _dieViews.Count; i++)
-                {
-                    // Holt den aktuellen (oder resetteten) Wert aus dem Modell
-                    int currentValue = _diceCup.Dice[i].Value; 
-                    
-                    // UI aktualisieren (Rahmen/Highlight ausblenden)
-                    _dieViews[i].UpdateView(currentValue, false);
-                    
-                    // Animator zwingen, den "Gehalten"-Zustand lautlos abzubrechen
-                    _dieViews[i].ResetToIdleSilent();
-                }
-            }
-            // ------------------------------------------------------------------
-
-            _scoreCardView.ClearAllPotentials(); 
-            UpdateMultiplayerScoreTracker();
-            RefreshUIForCurrentPlayer(); // Wichtig, damit das UI den Namen anzeigt
-
-            // Zuerst machen wir den Button für ALLE aus (Sicherheit)
-            _rollButton.interactable = false;
-
-            // Wir informieren alle (den Bot), dass ein neuer Zug beginnt
-            OnTurnStarted?.Invoke();
-
-            // Wenn es KEIN Bot ist, schalten wir den Button wieder ein
-            if (CurrentPlayer.Name != "Bot")
-            {
-                _rollButton.interactable = true;
-                _skipBotButton.gameObject.SetActive(false); //Skip Button verstecken, wenn kein Bot am Zug ist
-            }
-            else
-            {
-                _skipBotButton.gameObject.SetActive(true); //Skip Button anzeigen, wenn ein Bot am Zug ist
-            }
-        }
-
-        private void EndGame()
-        {
-            _rollButton.interactable = false;
-            
-            if (_gameOverView == null) return;
-
-            // Wir prüfen einfach die Anzahl der Spieler
-            if (_players.Count == 1)
-            {
-                _gameOverView.ShowSinglePlayer(_players[0].ScoreCard.GrandTotal);
-            }
-            else
-            {
-                _gameOverView.ShowMultiPlayer(_players);
-            }
-        }
-
-        private void HandleRestart()
-        {
-            UnityEngine.SceneManagement.SceneManager.LoadScene(
-                UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);
-        }
-
-        private void HandleMainMenu()
-        {
-            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenuScene");
-        }
-
-        private void OnDestroy()
-        {
-            if (_rollButton != null) _rollButton.onClick.RemoveAllListeners();
-            if (_scoreCardView != null) _scoreCardView.OnCategoryClicked -= HandleCategoryClicked;
             if (_gameOverView != null)
             {
-                _gameOverView.OnRestartClicked -= HandleRestart;
-                _gameOverView.OnMainMenuClicked -= HandleMainMenu;
+                _gameOverView.OnRestartClicked += HandleRestart;
+                _gameOverView.OnMainMenuClicked += HandleMainMenu;
+            }
+        }
+
+        private void BindManagerEvents()
+        {
+            // MatchManager -> UI (Wir hören auf die Logik und spielen Animationen ab)
+            _matchManager.OnTurnStarted += HandleTurnStarted;
+            _matchManager.OnDiceRolled += HandleDiceRolled;
+            _matchManager.OnDieStateChanged += HandleDieStateChanged;
+            _matchManager.OnScoreApplied += HandleScoreApplied;
+            _matchManager.OnBonusClaimed += HandleBonusClaimed;
+            _matchManager.OnGameOver += HandleGameOver;
+        }
+
+        // ==========================================
+        // EVENT HANDLER (Von der Kernlogik zur UI)
+        // ==========================================
+
+        private void HandleTurnStarted(Player player)
+        {
+            // 1. Welcher Input ist dran?
+            foreach (var input in _playerInputs.Values) input.SetActive(false);
+            
+            var activeInput = _playerInputs[player];
+            activeInput.SetActive(true);
+            _matchManager.AttachInput(activeInput);
+
+            // 2. Pass Device Logik
+            bool showPassDevice = false;
+            if (_matchManager.Players.Count > 1 && _previousPlayer != null)
+            {
+                bool wasHuman = !_previousPlayer.IsBot;
+                bool isNextHuman = !player.IsBot;
+                if (wasHuman && isNextHuman) showPassDevice = true;
+            }
+
+            if (showPassDevice)
+            {
+                SetUIInteractable(false);
+                _passDeviceView.Show(player.Name);
+            }
+            else
+            {
+                StartVisualTurn(player);
+            }
+
+            _previousPlayer = player;
+        }
+
+        private void StartVisualTurn(Player player)
+        {
+            // UI aufräumen
+            for (int i = 0; i < _dieViews.Count; i++)
+            {
+                int currentValue = _matchManager.Cup.Dice[i].Value;
+                _dieViews[i].UpdateView(currentValue, false);
+                _dieViews[i].ResetToIdleSilent();
+            }
+
+            _scoreCardView.ClearAllPotentials();
+            UpdateMultiplayerScoreTracker();
+            RefreshUIForCurrentPlayer(player);
+
+            // Ist es ein Bot?
+            if (player.IsBot)
+            {
+                SetUIInteractable(false);
+                if (_skipBotButton != null) _skipBotButton.gameObject.SetActive(true);
+                
+                // Dem Bot Bescheid geben, dass er starten darf
+                var botInput = _playerInputs[player] as BotPlayerInput;
+                botInput?.StartBotTurn(_matchManager.Cup, player.ScoreCard);
+            }
+            else
+            {
+                SetUIInteractable(true);
+                if (_skipBotButton != null) _skipBotButton.gameObject.SetActive(false);
+            }
+        }
+
+        private void HandleDiceRolled(DiceCup cup)
+        {
+            StartCoroutine(RollAnimationRoutine(cup));
+        }
+
+        private IEnumerator RollAnimationRoutine(DiceCup cup)
+        {
+            if (_diceCanvasGroup != null) _diceCanvasGroup.blocksRaycasts = false;
+            _rollButton.interactable = false;
+
+            bool allDiceHeld = cup.Dice.All(die => die.IsHeld);
+            if (!allDiceHeld && _rollDiceSounds != null && _rollDiceSounds.Length > 0)
+            {
+                int randomIndex = UnityEngine.Random.Range(0, _rollDiceSounds.Length);
+                AudioManager.Instance.PlaySFX(_rollDiceSounds[randomIndex]);
+            }
+
+            float duration = 1.5f;
+            for (int i = 0; i < cup.Dice.Count; i++)
+            {
+                _dieViews[i].AnimateRoll(cup.Dice[i].Value, duration);
+            }
+
+            yield return new WaitForSeconds(duration);
+
+            if (cup.RollsLeft > 0 && !_matchManager.CurrentPlayer.IsBot)
+            {
+                _rollButton.interactable = true;
+            }
+
+            if (_diceCanvasGroup != null && !_matchManager.CurrentPlayer.IsBot)
+            {
+                _diceCanvasGroup.blocksRaycasts = true;
+            }
+
+            UpdatePotentialScores(cup, _matchManager.CurrentPlayer);
+        }
+
+        private void HandleDieStateChanged(int index, bool isHeld)
+        {
+            int currentValue = _matchManager.Cup.Dice[index].Value;
+            _dieViews[index].UpdateView(currentValue, isHeld);
+            _dieViews[index].PlayToggleAnimation(isHeld);
+        }
+
+        private void HandleScoreApplied(Player player, ScoreCategory category, int points)
+        {
+            if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(_scoreCategorySound);
+
+            _scoreCardView.SetFinalScore(category, points);
+            _scoreCardView.ClearAllPotentials();
+            _scoreCardView.UpdateTotals(
+                player.ScoreCard.UpperSectionRaw,
+                player.ScoreCard.UpperSectionBonus,
+                player.ScoreCard.GrandTotal
+            );
+
+            UpdateMultiplayerScoreTracker();
+            StartCoroutine(TurnTransitionRoutine());
+        }
+
+        private IEnumerator TurnTransitionRoutine()
+        {
+            SetUIInteractable(false);
+            // Ein kurzer Delay, damit man sieht, was eingetragen wurde, bevor das Board umschaltet
+            yield return new WaitForSeconds(_matchManager.Players.Count > 1 ? 2.0f : 0.5f);
+            // Die Kernlogik hat in der Zwischenzeit schon weitergeschaltet
+        }
+
+        private void HandleBonusClaimed(Player player)
+        {
+            _scoreCardView.RefreshDisplay(player.ScoreCard);
+            if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(_bonusClaimSound);
+        }
+
+        private void HandleGameOver(List<Player> rankings)
+        {
+            SetUIInteractable(false);
+            if (_gameOverView == null) return;
+
+            if (rankings.Count == 1)
+            {
+                _gameOverView.ShowSinglePlayer(rankings[0].ScoreCard.GrandTotal);
+            }
+            else
+            {
+                _gameOverView.ShowMultiPlayer(rankings);
+            }
+        }
+
+        // ==========================================
+        // UI HELPER METHODEN
+        // ==========================================
+
+        private void HandleSkipBotClicked()
+        {
+            if (_matchManager.CurrentPlayer.IsBot)
+            {
+                var botInput = _playerInputs[_matchManager.CurrentPlayer] as BotPlayerInput;
+                botInput?.SkipBotTurn(_matchManager.Cup, _matchManager.CurrentPlayer.ScoreCard);
             }
         }
 
         private void HandlePlayerReady()
         {
-            // Verstecke das Overlay
             if (_passDeviceView != null) _passDeviceView.Hide();
-            
-            // Lade die Punktekarte des neuen Spielers und starte die Runde
-            RefreshUIForCurrentPlayer();
-            StartNewTurn();
+            StartVisualTurn(_matchManager.CurrentPlayer);
         }
 
-        private void RefreshUIForCurrentPlayer()
+        private void UpdatePotentialScores(DiceCup cup, Player player)
         {
-            // Die Punktekarte wie gewohnt aktualisieren
-            _scoreCardView.RefreshDisplay(CurrentPlayer.ScoreCard);
-            
+            foreach (ScoreCategory category in System.Enum.GetValues(typeof(ScoreCategory)))
+            {
+                if (!player.ScoreCard.IsCategoryFilled(category))
+                {
+                    int potentialScore = ScoreCalculator.CalculateScore(cup.Dice, category);
+                    _scoreCardView.ShowPotentialScore(category, potentialScore);
+                }
+            }
+        }
+
+        private void RefreshUIForCurrentPlayer(Player player)
+        {
+            _scoreCardView.RefreshDisplay(player.ScoreCard);
+
             if (_currentPlayerNameText != null)
             {
-                if (_players.Count == 1)
+                if (_matchManager.Players.Count == 1)
                 {
-                    // --- NEU: Live Highscore Check im Singleplayer ---
                     int currentHighScore = PlayerPrefs.GetInt("HighScore", 0);
-                    int currentScore = CurrentPlayer.ScoreCard.GrandTotal;
+                    int currentScore = player.ScoreCard.GrandTotal;
 
-                    // Wenn der aktuelle Score den Highscore knackt (und es nicht das allererste Spiel überhaupt ist)
                     if (currentScore > currentHighScore && currentHighScore > 0)
                     {
-                        _currentPlayerNameText.text = $"New Record: {currentScore}!";
-                        _currentPlayerNameText.color = Color.green; // Zur Feier Grün einfärben
+                        // NEU: Nutze den Service für den Rekord-Text
+                        _currentPlayerNameText.text = LocalizationService.Instance.GetText("new_record", currentScore);
+                        _currentPlayerNameText.color = Color.green;
                     }
                     else
                     {
-                        // Solange der Rekord noch nicht gebrochen wurde
-                        // (Mathf.Max sorgt dafür, dass beim allerersten Spiel nicht "High Score: 0" steht, 
-                        // sondern die Punkte live mitwachsen)
                         int displayScore = Mathf.Max(currentHighScore, currentScore);
-                        _currentPlayerNameText.text = $"High Score: {displayScore}";
+                        // NEU: Nutze den Service für den Highscore-Text
+                        _currentPlayerNameText.text = LocalizationService.Instance.GetText("high_score", displayScore);
                         _currentPlayerNameText.color = Color.yellow;
                     }
                 }
                 else
                 {
-                    // Multiplayer: Zeige an, wer am Zug ist
-                    _currentPlayerNameText.text = $"Turn: {CurrentPlayer.Name}";
-                    _currentPlayerNameText.color = (CurrentPlayer.Name == "Bot") ? Color.red : Color.white;
+                    // NEU: Nutze den Service für die Anzeige, wer am Zug ist
+                    _currentPlayerNameText.text = LocalizationService.Instance.GetText("turn_indicator", player.Name);
+                    _currentPlayerNameText.color = player.IsBot ? Color.red : Color.white;
                 }
             }
         }
 
         private void UpdateMultiplayerScoreTracker()
         {
-            // Wenn das Textfeld nicht verknüpft ist oder wir im reinen Singleplayer sind, 
-            // machen wir das Feld unsichtbar.
-            if (_multiplayerScoreTrackerText == null) return;
-
-            if (_players.Count <= 1)
+            if (_multiplayerScoreTrackerText == null || _matchManager.Players.Count <= 1)
             {
-                _multiplayerScoreTrackerText.gameObject.SetActive(false);
+                if (_multiplayerScoreTrackerText != null) _multiplayerScoreTrackerText.gameObject.SetActive(false);
                 return;
             }
 
             _multiplayerScoreTrackerText.gameObject.SetActive(true);
-
-            // Wir bauen den Text zusammen
-            string trackerString = "";
-            for (int i = 0; i < _players.Count; i++)
-            {
-                trackerString += $"{_players[i].Name}: {_players[i].ScoreCard.GrandTotal}";
-                
-                // Füge den Trennstrich hinzu (außer nach dem letzten Spieler)
-                if (i < _players.Count - 1)
-                {
-                    trackerString += "   |   ";
-                }
-            }
-
+            string trackerString = string.Join("   |   ", _matchManager.Players.Select(p => $"{p.Name}: {p.ScoreCard.GrandTotal}"));
             _multiplayerScoreTrackerText.text = trackerString;
         }
 
-        // Wird vom Zahnrad-Button aufgerufen
-        public void OpenSettings()
-        {
-            if (_settingsPanel != null)
-            {
-                _settingsPanel.SetActive(true);
-                
-                // Optional: Einen Klick-Sound abspielen
-                if (DiceGame.Audio.AudioManager.Instance != null)
-                {
-                    // AudioManager.Instance.PlaySFX(_scoreCategorySound); // oder einen eigenen Klick-Sound
-                }
-            }
-        }
-
-        // Wird vom "Weiterspielen"-Button aufgerufen
-        public void CloseSettings()
-        {
-            if (_settingsPanel != null)
-            {
-                _settingsPanel.SetActive(false);
-            }
-        }
-
-        // Wird vom "Hauptmenü"-Button aufgerufen
-        public void GoToMainMenu()
-        {
-            // Lade die Main Menu Szene. 
-            // ACHTUNG: Der Name hier muss EXAKT so lauten wie deine Szene im Projekt!
-            SceneManager.LoadScene("MainMenuScene"); 
-        }
-
-        // Diese Methode schaltet die Interaktion der Buttons an oder aus
         public void SetUIInteractable(bool isInteractable)
         {
-            // 1. Roll-Button sperren
-            if (_rollButton != null)
-            {
-                _rollButton.interactable = isInteractable;
-            }
-
-            // 2. Komplettes Scoreboard sperren (Klicks gehen nicht mehr durch)
+            if (_rollButton != null) _rollButton.interactable = isInteractable;
             if (_scoreCardCanvasGroup != null)
             {
                 _scoreCardCanvasGroup.interactable = isInteractable;
@@ -532,23 +383,65 @@ namespace DiceGame.Controllers
             }
         }
 
-        public void HandleBonusClaimed()
-        {
-            // 1. Im Datenmodell den Bonus auf 'true' setzen
-            CurrentPlayer.ScoreCard.ClaimBonus();
+        // ==========================================
+        // SCENE MANAGEMENT & SETTINGS
+        // ==========================================
 
-            // 2. Die UI aktualisieren, damit der Button aufhört zu hüpfen 
-            // und das neue Total (mit den +35 Punkten) angezeigt wird.
-            _scoreCardView.RefreshDisplay(CurrentPlayer.ScoreCard);
-
-             // 3. Optional: Einen Soundeffekt abspielen
-             if (DiceGame.Audio.AudioManager.Instance != null)
-             {
-                 DiceGame.Audio.AudioManager.Instance.PlaySFX(_bonusClaimSound);
-             }
-            
-                // 4. Optional: Ein kurzes visuelles Feedback (z.B. eine Partikel-Explosion oder ein "+35!" Text) könnte hier auch noch hinzugefügt werden.
+        public void OpenSettings() 
+        { 
+            if (_settingsPanel != null) 
+            {
+                _settingsPanel.SetActive(true); 
+                if (_settingsAnimator != null)
+                {
+                    _settingsAnimator.SetBool("IsVisible", true); 
+                }
+            }
         }
 
+        public void CloseSettings() 
+        { 
+            StartCoroutine(CloseSettingsRoutine()); 
+        }
+
+        private IEnumerator CloseSettingsRoutine()
+        {
+            if (_settingsAnimator != null)
+            {
+                _settingsAnimator.SetBool("IsVisible", false);
+                // Warte, bis die Slide-Out Animation fertig ist (Zeit ggf. anpassen)
+                yield return new WaitForSeconds(0.5f); 
+            }
+            
+            if (_settingsPanel != null) 
+            {
+                _settingsPanel.SetActive(false);
+            }
+        }
+
+        public void GoToMainMenu() 
+        { 
+            SceneManager.LoadScene("MainMenuScene"); 
+        }
+
+        private void HandleRestart() { SceneManager.LoadScene(SceneManager.GetActiveScene().name); }
+        private void HandleMainMenu() { SceneManager.LoadScene("MainMenuScene"); }
+
+        private void OnDestroy()
+        {
+            if (_rollButton != null) _rollButton.onClick.RemoveAllListeners();
+            LocalizationService.Instance.OnLanguageChanged -= HandleLanguageChanged;
+        }
+
+        private void HandleLanguageChanged()
+        {
+            // Aktualisiert Namen und Turn-Anzeige
+            RefreshUIForCurrentPlayer(_matchManager.CurrentPlayer);
+            
+            // NEU: Aktualisiert die Punktekarte (Einser, Full House etc.)
+            _scoreCardView.UpdateTranslations();
+            _scoreCardView.RefreshDisplay(_matchManager.CurrentPlayer.ScoreCard);
+        }
     }
+    
 }

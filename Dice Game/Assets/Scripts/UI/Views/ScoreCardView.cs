@@ -33,20 +33,19 @@ namespace DiceGame.UI.Views
 
         public void Initialize()
         {
-            // Alte Buttons aufräumen, falls das UI neu geladen wird
             foreach (Transform child in _leftBlockContainer) Destroy(child.gameObject);
             foreach (Transform child in _rightBlockContainer) Destroy(child.gameObject);
             _rows.Clear();
 
             foreach (ScoreCategory category in System.Enum.GetValues(typeof(ScoreCategory)))
             {
-                // Bestimme, ob der Button links oder rechts erscheinen soll
                 Transform targetContainer = IsLeftColumn(category) ? _leftBlockContainer : _rightBlockContainer;
-
                 ScoreRowView newRow = Instantiate(_rowPrefab, targetContainer, false);
                 
-                // Macht aus "ThreeOfAKind" -> "Three Of A Kind"
-                string displayName = System.Text.RegularExpressions.Regex.Replace(category.ToString(), "([a-z])([A-Z])", "$1 $2");
+                // --- NEU: Lokalisierung laden ---
+                // Generiert z.B. "cat_threeofakind"
+                string locKey = $"cat_{category.ToString().ToLower()}"; 
+                string displayName = Services.LocalizationService.Instance.GetText(locKey);
                 
                 newRow.Initialize(category, displayName);
                 newRow.OnRowClicked += (cat) => OnCategoryClicked?.Invoke(cat);
@@ -56,14 +55,24 @@ namespace DiceGame.UI.Views
             if (_bonusRowPrefab != null)
             {
                 _bonusRowInstance = Instantiate(_bonusRowPrefab, _leftBlockContainer, false);
-                // Durch SetAsLastSibling stellen wir sicher, dass es GANZ UNTEN in der LeftColumn landet
                 _bonusRowInstance.transform.SetAsLastSibling(); 
                 _bonusRowInstance.Initialize(63);
-
                 _bonusRowInstance.OnClaimClicked += () => OnBonusClaimClicked?.Invoke();
             }
 
             UpdateTotals(0, 0, 0);
+        }
+
+        // --- NEU: Wird vom GameController aufgerufen, wenn die Sprache umschaltet ---
+        public void UpdateTranslations()
+        {
+            foreach (var kvp in _rows)
+            {
+                ScoreCategory category = kvp.Key;
+                string locKey = $"cat_{category.ToString().ToLower()}";
+                string localizedName = Services.LocalizationService.Instance.GetText(locKey);
+                kvp.Value.UpdateCategoryName(localizedName);
+            }
         }
 
         // Trennungs-Logik: 1er bis 6er kommen nach links, der Rest nach rechts

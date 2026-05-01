@@ -94,5 +94,14 @@ namespace DiceGame.UI.Views
                 _selectButton.onClick.RemoveAllListeners();
             }
         }
+
+        // Erlaubt uns, den Namen nachträglich zu ändern, wenn die Sprache umschaltet
+        public void UpdateCategoryName(string localizedName)
+        {
+            if (_categoryNameText != null)
+            {
+                _categoryNameText.text = localizedName;
+            }
+        }
     }
 }
