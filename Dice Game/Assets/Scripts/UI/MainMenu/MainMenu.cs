@@ -47,20 +47,18 @@ namespace DiceGame.UI.MainMenu
         [SerializeField] private GameObject _multiplayerTypePanel;
 
         [Header("Animations")]
-        [SerializeField] private Animator _openSettingsAnimator; // Für das Einblenden des Main Menus
-        [SerializeField] private Animator _settingsAnimator; // Für das Sliden der Panels
-        [SerializeField] private Animator _multiplayerTypeAnimator; // Für das Einblenden der Multiplayer-Auswahl
-
+        [SerializeField] private Animator _openSettingsAnimator; 
+        [SerializeField] private Animator _settingsAnimator; 
+        [SerializeField] private Animator _multiplayerTypeAnimator; 
+        [SerializeField] private Animator _startLocalGameButtonAnimator;
 
         private int _currentPlayerCount = 1; 
         private const int MIN_PLAYERS = 1;
         private const int MAX_PLAYERS = 4;
 
-
         private void Start()
         {
             _targetPosition = new Vector2(_mainMenuX, 0);
-
 
             if (_mainMenuHighScoreText != null)
             {
@@ -93,17 +91,12 @@ namespace DiceGame.UI.MainMenu
             if (_removePlayerButton) _removePlayerButton.onClick.AddListener(RemovePlayer);
             if (_backToTypeMenuButton) _backToTypeMenuButton.onClick.AddListener(() => MoveTo(_mainMenuX));
 
-
-
-            
-
             foreach (var input in _playerNameInputs)
             {
                 input.onValueChanged.AddListener(_ => ValidateInputs());
             }
 
-
-
+            // Initiale UI-Aktualisierung
             UpdatePlayerCountUI();
         }
 
@@ -123,24 +116,21 @@ namespace DiceGame.UI.MainMenu
 
         private void OpenSettings()
         {
-            _openSettingsAnimator.SetTrigger("Pressed"); // Trigger für die Einblend-Animation
+            _openSettingsAnimator.SetTrigger("Pressed"); 
             _settingsPanel.SetActive(true);
-            _settingsAnimator.SetBool("IsVisible", true); // NEU: Bool für die Sichtbarkeit setzen
+            _settingsAnimator.SetBool("IsVisible", true); 
         }
 
         private IEnumerator CloseSettings()
         {
             _settingsAnimator.SetBool("IsVisible", false);
-
             yield return new WaitForSeconds(0.5f);
-
             _settingsPanel.SetActive(false);
         }
 
         private void MultiplayerTypeMenu()
         {
             bool isVisible = _multiplayerTypeAnimator.GetBool("IsVisible");
-
             _multiplayerTypeAnimator.SetBool("IsVisible", !isVisible);
         }
 
@@ -173,8 +163,34 @@ namespace DiceGame.UI.MainMenu
         {
             for (int i = 0; i < _playerNameInputs.Length; i++)
             {
-                if (_playerNameInputs[i] != null)
-                    _playerNameInputs[i].gameObject.SetActive(i < _currentPlayerCount);
+                if (_playerNameInputs[i] == null) continue;
+
+                // Wenn _currentPlayerCount == 1 ist, brauchen wir 2 Felder (Spieler + Bot).
+                // Ansonsten brauchen wir exakt so viele Felder wie _currentPlayerCount.
+                bool shouldBeActive = (_currentPlayerCount == 1) ? (i < 2) : (i < _currentPlayerCount);
+                _playerNameInputs[i].gameObject.SetActive(shouldBeActive);
+
+                // Spezifische Logik für das zweite Eingabefeld (Index 1)
+                if (i == 1)
+                {
+                    if (_currentPlayerCount == 1)
+                    {
+                        // Bot-Modus einrichten
+                        _playerNameInputs[i].text = "Bot";
+                        _playerNameInputs[i].interactable = false;
+                    }
+                    else
+                    {
+                        // Multiplayer-Modus: Feld entsperren
+                        _playerNameInputs[i].interactable = true;
+                        
+                        // Bot-Text entfernen, falls noch vorhanden
+                        if (_playerNameInputs[i].text == "Bot")
+                        {
+                            _playerNameInputs[i].text = string.Empty;
+                        }
+                    }
+                }
             }
 
             if (_addPlayerButton) _addPlayerButton.interactable = _currentPlayerCount < MAX_PLAYERS;
@@ -182,7 +198,7 @@ namespace DiceGame.UI.MainMenu
 
             if (_playerCountText != null)
             {
-                _playerCountText.text = (_currentPlayerCount == 1) ? "You vs" + "<color=red> Bot</color>" : $"{_currentPlayerCount} Players";
+                _playerCountText.text = (_currentPlayerCount == 1) ? "You vs <color=red>Bot</color>" : $"{_currentPlayerCount} Players";
             }
 
             ValidateInputs();
@@ -192,9 +208,12 @@ namespace DiceGame.UI.MainMenu
         {
             bool allNamesEntered = true;
 
+            // Prüft nur die echten Spieler.
+            // Da bei 1 Spieler der zweite Platz vom Bot belegt ist (und _currentPlayerCount 1 ist),
+            // wird das deaktivierte Bot-Feld hier richtigerweise ignoriert.
             for (int i = 0; i < _currentPlayerCount; i++)
             {
-                if (string.IsNullOrWhiteSpace(_playerNameInputs[i].text))
+                if (_playerNameInputs[i] != null && string.IsNullOrWhiteSpace(_playerNameInputs[i].text))
                 {
                     allNamesEntered = false;
                     break;
@@ -204,6 +223,7 @@ namespace DiceGame.UI.MainMenu
             if (_startGameButton != null)
             {
                 _startGameButton.interactable = allNamesEntered;
+                _startLocalGameButtonAnimator.SetBool("IsReady", allNamesEntered); // NEU: Animation für den Start-Button
             }
         }
 
@@ -221,7 +241,9 @@ namespace DiceGame.UI.MainMenu
                 names.Add(_playerNameInputs[i].text.Trim());
             }
 
-            if (_currentPlayerCount == 1) names.Add("Bot");
+            // Die if-Abfrage hier ist perfekt, da das Bot-Feld in der UI nicht zu 
+            // _currentPlayerCount zählt, es aber für das Match Data benötigt wird.
+            if (_currentPlayerCount == 1) names.Add("<color=red>Bot</color>");
 
             MatchData.PlayerNames = names;
             SceneManager.LoadScene("InGameScene");
