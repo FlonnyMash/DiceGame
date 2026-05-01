@@ -8,14 +8,23 @@ namespace DiceGame.Controllers
 {
     public class SettingsController : MonoBehaviour
     {
+        // 1. DAS NEUE STRUCT (Muss innerhalb der Klasse stehen)
+        [System.Serializable]
+        public struct AudioToggleMapping
+        {
+            public Toggle toggle;
+            public Image iconImage;
+            public Sprite onSprite;
+            public Sprite offSprite;
+        }
+
+        [Header("UI Controls - Audio")]
+        [SerializeField] private AudioToggleMapping masterAudio;
+        [SerializeField] private AudioToggleMapping musicAudio;
+        [SerializeField] private AudioToggleMapping sfxAudio;
         [Header("UI Containers")]
         [SerializeField] private GameObject mainSettingsContainer;
         [SerializeField] private GameObject languageSelectionContainer;
-
-        [Header("UI Controls - Audio")]
-        [SerializeField] private Toggle masterToggle;
-        [SerializeField] private Toggle musicToggle;
-        [SerializeField] private Toggle sfxToggle;
         
         [Header("UI Controls - Language Main")]
         [SerializeField] private Button openLanguagePanelButton;
@@ -25,6 +34,7 @@ namespace DiceGame.Controllers
         [SerializeField] private Button closeLanguagePanelButton;
         [SerializeField] private LanguageButtonMapping[] languageButtons;
         [System.Serializable]
+
         public struct LanguageButtonMapping
         {
             public SupportedLanguage language;
@@ -48,17 +58,18 @@ namespace DiceGame.Controllers
             _currentSettings = _settingsService.LoadSettings();
 
             // Audio initialisieren
-            if (musicToggle != null) musicToggle.SetIsOnWithoutNotify(_currentSettings.IsMusicOn);
-            if (sfxToggle != null) sfxToggle.SetIsOnWithoutNotify(_currentSettings.IsSfxOn);
-            
+            if (musicAudio.toggle != null) musicAudio.toggle.SetIsOnWithoutNotify(_currentSettings.IsMusicOn);
+            if (sfxAudio.toggle != null) sfxAudio.toggle.SetIsOnWithoutNotify(_currentSettings.IsSfxOn);
+            if (masterAudio.toggle != null) masterAudio.toggle.SetIsOnWithoutNotify(_currentSettings.IsMasterOn);
+
             // UI Status initialisieren
             ShowMainSettings();
             UpdateCurrentLanguageIcon(_localizationService.CurrentLanguage);
 
             // Listener hinzufügen
-            if (masterToggle != null) masterToggle.onValueChanged.AddListener(OnMasterToggled);
-            if (musicToggle != null) musicToggle.onValueChanged.AddListener(OnMusicToggled);
-            if (sfxToggle != null) sfxToggle.onValueChanged.AddListener(OnSfxToggled);
+            if (masterAudio.toggle != null) masterAudio.toggle.onValueChanged.AddListener(OnMasterToggled);
+            if (musicAudio.toggle != null) musicAudio.toggle.onValueChanged.AddListener(OnMusicToggled);
+            if (sfxAudio.toggle != null) sfxAudio.toggle.onValueChanged.AddListener(OnSfxToggled);
 
             // Language Panel Navigation
             if (openLanguagePanelButton != null) openLanguagePanelButton.onClick.AddListener(ShowLanguageSelection);
@@ -77,10 +88,24 @@ namespace DiceGame.Controllers
         }
         private void OnEnable()
         {
-            // Wenn das Settings-Fenster aktiviert wird, updaten wir sofort das Icon
             if (_localizationService != null)
             {
                 UpdateCurrentLanguageIcon(_localizationService.CurrentLanguage);
+            }
+
+            // NEU: Toggles jedes Mal updaten, wenn das Menü aufgeht
+            if (_settingsService != null)
+            {
+                _currentSettings = _settingsService.LoadSettings();
+                
+                if (masterAudio.toggle != null) masterAudio.toggle.SetIsOnWithoutNotify(_currentSettings.IsMasterOn);
+                if (musicAudio.toggle != null) musicAudio.toggle.SetIsOnWithoutNotify(_currentSettings.IsMusicOn);
+                if (sfxAudio.toggle != null) sfxAudio.toggle.SetIsOnWithoutNotify(_currentSettings.IsSfxOn);
+
+                // Bilder updaten
+                UpdateAudioIcon(masterAudio, _currentSettings.IsMasterOn);
+                UpdateAudioIcon(musicAudio, _currentSettings.IsMusicOn);
+                UpdateAudioIcon(sfxAudio, _currentSettings.IsSfxOn);
             }
         }
 
@@ -153,9 +178,84 @@ namespace DiceGame.Controllers
             }
         }
 
-        // --- Audio Logic (Placeholder) ---
-        private void OnMasterToggled(bool isOn) { /* ... */ }
-        private void OnMusicToggled(bool isOn) { /* ... */ }
-        private void OnSfxToggled(bool isOn) { /* ... */ }
+  // --- Audio Logic ---
+
+        // NEU: Prüft, ob beide Sub-Toggles an sind. Wenn ja, geht Master an. Sonst aus.
+        private void EvaluateMasterToggle()
+        {
+            if (_currentSettings == null) return;
+
+            // Master soll nur AN sein, wenn Musik UND SFX an sind
+            bool shouldMasterBeOn = _currentSettings.IsMusicOn || _currentSettings.IsSfxOn;
+
+            if (_currentSettings.IsMasterOn != shouldMasterBeOn)
+            {
+                _currentSettings.IsMasterOn = shouldMasterBeOn;
+                
+                // SetIsOnWithoutNotify verhindert, dass ein künstlicher Klick ausgelöst wird! (Keine Endlosschleife)
+                if (masterAudio.toggle != null) masterAudio.toggle.SetIsOnWithoutNotify(shouldMasterBeOn);
+                
+                UpdateAudioIcon(masterAudio, shouldMasterBeOn);
+            }
+        }
+
+        private void OnMasterToggled(bool isOn)
+        {
+            if (_currentSettings != null)
+            {
+                // Master speichert seinen Zustand
+                _currentSettings.IsMasterOn = isOn;
+                UpdateAudioIcon(masterAudio, isOn);
+
+                // Master zwingt Musik und SFX auf seinen eigenen Zustand
+                _currentSettings.IsMusicOn = isOn;
+                _currentSettings.IsSfxOn = isOn;
+
+                // UI der Kinder updaten (ohne erneutes Event)
+                if (musicAudio.toggle != null) musicAudio.toggle.SetIsOnWithoutNotify(isOn);
+                if (sfxAudio.toggle != null) sfxAudio.toggle.SetIsOnWithoutNotify(isOn);
+
+                UpdateAudioIcon(musicAudio, isOn);
+                UpdateAudioIcon(sfxAudio, isOn);
+
+                _settingsService.SaveSettings(_currentSettings);
+            }
+        }
+
+        private void OnMusicToggled(bool isOn)
+        {
+            if (_currentSettings != null)
+            {
+                _currentSettings.IsMusicOn = isOn;
+                UpdateAudioIcon(musicAudio, isOn);
+
+                EvaluateMasterToggle(); // Prüft, ob Master reagieren muss
+
+                _settingsService.SaveSettings(_currentSettings);
+            }
+        }
+
+        private void OnSfxToggled(bool isOn)
+        {
+            if (_currentSettings != null)
+            {
+                _currentSettings.IsSfxOn = isOn;
+                UpdateAudioIcon(sfxAudio, isOn);
+
+                EvaluateMasterToggle(); // Prüft, ob Master reagieren muss
+
+                _settingsService.SaveSettings(_currentSettings);
+            }
+        }
+            
+        
+        private void UpdateAudioIcon(AudioToggleMapping mapping, bool isOn)
+        {
+            if (mapping.iconImage != null && mapping.onSprite != null && mapping.offSprite != null)
+            {
+                mapping.iconImage.sprite = isOn ? mapping.onSprite : mapping.offSprite;
+            }
+        }
+
     }
 }

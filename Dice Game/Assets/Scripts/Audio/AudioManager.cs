@@ -75,6 +75,8 @@ namespace DiceGame.Audio
 
         private void ApplyAudioSettings(AppSettings settings)
         {
+            // (Wir haben AudioListener.volume entfernt, da Master jetzt ein reiner UI-Gruppenschalter ist)
+
             // Die "Mute"-Eigenschaft schaltet den Ton komplett aus (true) oder an (false)
             if (_musicSource != null)
             {

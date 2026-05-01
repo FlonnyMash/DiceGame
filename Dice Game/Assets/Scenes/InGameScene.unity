@@ -171,11 +171,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23d2405a3cc6ed8408b6a80c2010c063, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiceGame.Controllers.SettingsController
+  masterAudio:
+    toggle: {fileID: 819066817}
+    iconImage: {fileID: 928364726}
+    onSprite: {fileID: 8837445301905419745, guid: e66426b52acd2a948999e48ec901d97b, type: 3}
+    offSprite: {fileID: 2443078639938028321, guid: 623df017cd9375c49946605e46d06755, type: 3}
+  musicAudio:
+    toggle: {fileID: 1691447988}
+    iconImage: {fileID: 211544479}
+    onSprite: {fileID: -4394594966491614467, guid: e1fae94be64d32249a3a7de030d185db, type: 3}
+    offSprite: {fileID: -1150114452266369728, guid: 3b39c6521dd757648875454a29c11a0e, type: 3}
+  sfxAudio:
+    toggle: {fileID: 300617074}
+    iconImage: {fileID: 57922525}
+    onSprite: {fileID: 7194960544827245959, guid: e3937cebe64821a4f82f9d49c3c175db, type: 3}
+    offSprite: {fileID: -4106181764869458497, guid: 2e49d973a56a83b428bf9346752a6cf3, type: 3}
   mainSettingsContainer: {fileID: 386456921}
   languageSelectionContainer: {fileID: 938133576}
-  masterToggle: {fileID: 819066817}
-  musicToggle: {fileID: 1691447988}
-  sfxToggle: {fileID: 300617074}
   openLanguagePanelButton: {fileID: 1643747722}
   currentLanguageIcon: {fileID: 904945488}
   closeLanguagePanelButton: {fileID: 1665301085}

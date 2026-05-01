@@ -397,11 +397,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23d2405a3cc6ed8408b6a80c2010c063, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiceGame.Controllers.SettingsController
+  masterAudio:
+    toggle: {fileID: 0}
+    iconImage: {fileID: 0}
+    onSprite: {fileID: 0}
+    offSprite: {fileID: 0}
+  musicAudio:
+    toggle: {fileID: 0}
+    iconImage: {fileID: 0}
+    onSprite: {fileID: 0}
+    offSprite: {fileID: 0}
+  sfxAudio:
+    toggle: {fileID: 0}
+    iconImage: {fileID: 0}
+    onSprite: {fileID: 0}
+    offSprite: {fileID: 0}
   mainSettingsContainer: {fileID: 0}
   languageSelectionContainer: {fileID: 0}
-  masterToggle: {fileID: 1296626237}
-  musicToggle: {fileID: 2069687301}
-  sfxToggle: {fileID: 771259498}
   openLanguagePanelButton: {fileID: 0}
   currentLanguageIcon: {fileID: 0}
   closeLanguagePanelButton: {fileID: 0}
@@ -2619,7 +2631,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &517978033
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2638,7 +2650,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.000030517578, y: -21.313576}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1200, y: 700}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!95 &517978034
@@ -2675,11 +2687,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 23d2405a3cc6ed8408b6a80c2010c063, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiceGame.Controllers.SettingsController
+  masterAudio:
+    toggle: {fileID: 437207954}
+    iconImage: {fileID: 47723669}
+    onSprite: {fileID: 8837445301905419745, guid: e66426b52acd2a948999e48ec901d97b, type: 3}
+    offSprite: {fileID: 2443078639938028321, guid: 623df017cd9375c49946605e46d06755, type: 3}
+  musicAudio:
+    toggle: {fileID: 1328676137}
+    iconImage: {fileID: 1736786984}
+    onSprite: {fileID: -4394594966491614467, guid: e1fae94be64d32249a3a7de030d185db, type: 3}
+    offSprite: {fileID: -1150114452266369728, guid: 3b39c6521dd757648875454a29c11a0e, type: 3}
+  sfxAudio:
+    toggle: {fileID: 1762090833}
+    iconImage: {fileID: 2124288581}
+    onSprite: {fileID: 7194960544827245959, guid: e3937cebe64821a4f82f9d49c3c175db, type: 3}
+    offSprite: {fileID: -4106181764869458497, guid: 2e49d973a56a83b428bf9346752a6cf3, type: 3}
   mainSettingsContainer: {fileID: 1605984551}
   languageSelectionContainer: {fileID: 1211448116}
-  masterToggle: {fileID: 437207954}
-  musicToggle: {fileID: 1328676137}
-  sfxToggle: {fileID: 1762090833}
   openLanguagePanelButton: {fileID: 1524985961}
   currentLanguageIcon: {fileID: 2008791937}
   closeLanguagePanelButton: {fileID: 1070250629}
@@ -4214,7 +4238,6 @@ RectTransform:
   m_Children:
   - {fileID: 2102618585}
   - {fileID: 33131402}
-  - {fileID: 1226477644}
   m_Father: {fileID: 814982979}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -5224,7 +5247,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1211448117
 RectTransform:
   m_ObjectHideFlags: 0
@@ -5248,73 +5271,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: -56}
   m_SizeDelta: {x: 990, y: 580.5}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!1 &1226477643
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1226477644}
-  - component: {fileID: 1226477646}
-  - component: {fileID: 1226477645}
-  m_Layer: 5
-  m_Name: BadgeIcon
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!224 &1226477644
-RectTransform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1226477643}
-  m_LocalRotation: {x: 0.00059041387, y: 0.0038895928, z: -0.14079106, w: 0.9900316}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1011444431}
-  m_LocalEulerAnglesHint: {x: 0.13, y: 0.432, z: -16.187}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 149, y: -45.79999}
-  m_SizeDelta: {x: 30, y: 35}
-  m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1226477645
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1226477643}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ef8b96895a0ec4ba685178a052544251, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.VectorGraphics::Unity.VectorGraphics.SVGImage
-  m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
-  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
-  m_OnCullStateChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  m_Sprite: {fileID: 3286163911610860551, guid: fa69da6748f08e346b6662f7e7461d1c, type: 3}
-  m_PreserveAspect: 0
---- !u!222 &1226477646
-CanvasRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1226477643}
-  m_CullTransparentMesh: 1
 --- !u!1 &1236324013
 GameObject:
   m_ObjectHideFlags: 0
@@ -8246,7 +8202,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1605984552
 RectTransform:
   m_ObjectHideFlags: 0
