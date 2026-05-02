@@ -1,4 +1,4 @@
-Key;en;de;es;fr;it;pt
+﻿Key;en;de;es;fr;it;pt
 menu_title;Yatzie;Kniffel;Yatzie;Yatzie;Yatzy;Yatzy
 btn_play_local;Local;Lokal;Local;Local;Locale;Local
 title_settings;Settings;Einstellungen;Ajustes;Paramètres;Impostazioni;Configurações
@@ -19,7 +19,7 @@ cat_fourofakind;Four Of A Kind;Vierling;Póker;Carré;Poker;Quadra
 cat_fullhouse;Full House;Full House;Full House;Full House;Full House;Full House
 cat_smallstraight;Small Straight;Kleine Straße;Escalera menor;Petite suite;Scala corta;Sequência menor
 cat_largestraight;Large Straight;Große Straße;Escalera mayor;Grande suite;Scala grande;Sequência maior
-cat_nicerdicer;Nicer Dicer;Nicer Dicer;Nicer Dicer;Nicer Dicer;Nicer Dicer;Nicer Dicer
+cat_nicerdicer;Dice!;Dice!;Dice!;Dice!;Dice!;Dice!
 cat_chance;Chance;Chance;Suerte;Chance;Chance;Sorte
 you_vs_bot;You vs <color=red>Bot</color>;Du gegen <color=red>Bot</color>;Tú contra <color=red>Bot</color>;Vous contre <color=red>Bot</color>;Tu contro <color=red>Bot</color>;Você contra <color=red>Bot</color>
 players_count;{0} Players;{0} Spieler;{0} Jugadores;{0} Joueurs;{0} Giocatori;{0} Jogadores
@@ -47,3 +47,10 @@ input_player_two;Player 2;Spieler 2;Jugador 2;Joueur 2;Giocatore 2;Jogador 2
 input_player_three;Player 3;Spieler 3;Jugador 3;Joueur 3;Giocatore 3;Jogador 3
 input_player_four;Player 4;Spieler 4;Jugador 4;Joueur 4;Giocatore 4;Jogador 4
 btn_main_menu;Main Menu;Hauptmenü;Menú principal;Menu principal;Menu principale;Menu principal
+hint_threeofakind;Three Of A Kind;Drilling;Trío;Brelan;Tris;Trinca
+hint_fourofakind;Four Of A Kind;Vierling;Póker;Carré;Poker;Quadra
+hint_fullhouse;Full House;Full House;Full House;Full House;Full House;Full House
+hint_smallstraight;Small Straight;Kleine Straße;Escalera menor;Petite suite;Scala corta;Sequência menor
+hint_largestraight;Large Straight;Große Straße;Escalera mayor;Grande suite;Scala grande;Sequência maior
+hint_nicerdicer;Dice!;Dice!;Dice!;Dice!;Dice!;Dice!
+hint_chance;Chance;Chance;Suerte;Chance;Chance;Sorte

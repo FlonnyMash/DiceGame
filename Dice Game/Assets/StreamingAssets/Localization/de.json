@@ -19,7 +19,7 @@
   "cat_fullhouse": "Full House",
   "cat_smallstraight": "Kleine Straße",
   "cat_largestraight": "Große Straße",
-  "cat_nicerdicer": "Nicer Dicer",
+  "cat_nicerdicer": "Dice!",
   "cat_chance": "Chance",
   "you_vs_bot": "Du gegen <color=red>Bot</color>",
   "players_count": "{0} Spieler",
@@ -46,5 +46,12 @@
   "input_player_two": "Spieler 2",
   "input_player_three": "Spieler 3",
   "input_player_four": "Spieler 4",
-  "btn_main_menu": "Hauptmenü"
+  "btn_main_menu": "Hauptmenü",
+  "hint_threeofakind": "Drilling",
+  "hint_fourofakind": "Vierling",
+  "hint_fullhouse": "Full House",
+  "hint_smallstraight": "Kleine Straße",
+  "hint_largestraight": "Große Straße",
+  "hint_nicerdicer": "Dice!",
+  "hint_chance": "Chance"
 }

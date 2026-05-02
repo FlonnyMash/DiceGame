@@ -13,6 +13,7 @@ using DiceGame.Core.Systems;
 using DiceGame.Core.Inputs;
 using DiceGame.Core.Interfaces;
 using DiceGame.Services;
+using DiceGame.UI.Effects;
 
 namespace DiceGame.Controllers
 {
@@ -29,8 +30,11 @@ namespace DiceGame.Controllers
         [SerializeField] private TextMeshProUGUI _currentPlayerNameText;
         [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
         [SerializeField] private Button _skipBotButton;
+        [SerializeField] private HintView _hintView;
         
-        // _botController wurde entfernt, wir nutzen jetzt das Input-System
+        [Header("VFX & Feedback (JUICE)")]
+        [SerializeField] private ParticleSystem _confettiParticles;
+        [SerializeField] private CameraShake _cameraShake;
 
         [Header("UI Panels")]
         [SerializeField] private GameObject _settingsPanel;
@@ -49,6 +53,11 @@ namespace DiceGame.Controllers
         private bool _isTransitioningTurn = false;
         private bool _isDiceRolling = false;
 
+        #if DEVELOPMENT_BUILD || UNITY_EDITOR
+        [Header("Debug")]
+        [SerializeField] private DebugMenuView _debugMenuView;
+#endif
+
         private void Start()
         {
             _settingsPanel.SetActive(false);
@@ -64,7 +73,110 @@ namespace DiceGame.Controllers
 
             // Abonniere Sprachwechsel, um UI sofort zu aktualisieren
             LocalizationService.Instance.OnLanguageChanged += HandleLanguageChanged;
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (_debugMenuView != null)
+            {
+                _debugMenuView.OnForceSixesClicked += () => ApplyCheat(new int[] { 6, 6, 6, 6, 6 });
+                _debugMenuView.OnForceStraightClicked += () => ApplyCheat(new int[] { 1, 2, 3, 4, 5 });
+                _debugMenuView.OnResetBoardClicked += ResetMatchHard;
+                
+                // NEU: Bonus Event abonnieren
+                _debugMenuView.OnForceBonusClicked += ForceUpperBonus;
+            }
+#endif
         }
+
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        // --- DEBUG & CHEAT METHODEN ---
+
+        private void ApplyCheat(int[] forcedValues)
+        {
+            if (_isDiceRolling)
+            {
+                Debug.LogWarning("<color=yellow>[DEBUG]</color> Cheat blockiert: Die Würfel rollen noch!");
+                return;
+            }
+            
+            if (_matchManager == null || _matchManager.CurrentPlayer == null) return;
+
+            if (_matchManager.CurrentPlayer.IsBot)
+            {
+                Debug.LogWarning("<color=yellow>[DEBUG]</color> Cheat blockiert: Der Bot ist am Zug!");
+                return;
+            }
+
+            for (int i = 0; i < _matchManager.Cup.Dice.Count; i++)
+            {
+                if (i < forcedValues.Length)
+                {
+                    _matchManager.Cup.Dice[i].DebugForceValue(forcedValues[i]);
+                    _dieViews[i].UpdateView(forcedValues[i], _matchManager.Cup.Dice[i].IsHeld);
+                }
+            }
+
+            UpdatePotentialScores(_matchManager.Cup, _matchManager.CurrentPlayer);
+
+            if (_hintView != null)
+            {
+                ScoreCategory? bestHint = HintCalculator.GetBestHint(
+                    _matchManager.CurrentPlayer.ScoreCard, 
+                    _matchManager.Cup.Dice, 
+                    _matchManager.Cup.RollsLeft);
+                
+                if (bestHint.HasValue) _hintView.ShowHint(bestHint.Value);
+            }
+
+            Debug.Log($"<color=cyan>[DEBUG]</color> Cheat angewendet: {string.Join(", ", forcedValues)}");
+        }
+
+        private void ResetMatchHard()
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+            Debug.Log("<color=cyan>[DEBUG]</color> Board (Szene) wurde zurückgesetzt!");
+        }
+
+        private void ForceUpperBonus()
+        {
+            if (_matchManager == null || _matchManager.CurrentPlayer == null) return;
+
+            Player player = _matchManager.CurrentPlayer;
+            
+            player.ScoreCard.SetScore(ScoreCategory.Ones, 3);
+            player.ScoreCard.SetScore(ScoreCategory.Twos, 6);
+            player.ScoreCard.SetScore(ScoreCategory.Threes, 9);
+            player.ScoreCard.SetScore(ScoreCategory.Fours, 12);
+            player.ScoreCard.SetScore(ScoreCategory.Fives, 15);
+            player.ScoreCard.SetScore(ScoreCategory.Sixes, 18);
+
+            _scoreCardView.SetFinalScore(ScoreCategory.Ones, 3);
+            _scoreCardView.SetFinalScore(ScoreCategory.Twos, 6);
+            _scoreCardView.SetFinalScore(ScoreCategory.Threes, 9);
+            _scoreCardView.SetFinalScore(ScoreCategory.Fours, 12);
+            _scoreCardView.SetFinalScore(ScoreCategory.Fives, 15);
+            _scoreCardView.SetFinalScore(ScoreCategory.Sixes, 18);
+
+            _scoreCardView.UpdateTotals(
+                player.ScoreCard.UpperSectionRaw,
+                player.ScoreCard.UpperSectionBonus,
+                player.ScoreCard.GrandTotal,
+                player.ScoreCard.IsBonusClaimed
+            );
+
+            Debug.Log("<color=cyan>[DEBUG]</color> Bonus erzwungen! Oberer Bereich hat nun exakt 63 Punkte.");
+        }
+
+        private void Update()
+        {
+            if (UnityEngine.InputSystem.Keyboard.current != null && 
+                UnityEngine.InputSystem.Keyboard.current.f1Key.wasPressedThisFrame)
+            {
+                ApplyCheat(new int[] { 6, 6, 6, 6, 6 });
+            }
+        }
+#endif
+
+        
 
         private void SetupCoreGame()
         {
@@ -218,6 +330,7 @@ namespace DiceGame.Controllers
             }
 
             _scoreCardView.ClearAllPotentials();
+            if (_hintView != null) _hintView.HideHint();
             UpdateMultiplayerScoreTracker();
             RefreshUIForCurrentPlayer(player);
 
@@ -246,17 +359,28 @@ namespace DiceGame.Controllers
         private IEnumerator RollAnimationRoutine(DiceCup cup)
         {
             _isDiceRolling = true;
-            
+
+            // UI SOFORT aufräumen
+            _scoreCardView.ClearAllPotentials();
+            _scoreCardView.ClearAllHighlights(); 
+            if (_hintView != null) _hintView.HideHint();
+
             if (_diceCanvasGroup != null) _diceCanvasGroup.blocksRaycasts = false;
             _rollButton.interactable = false;
 
             bool allDiceHeld = cup.Dice.All(die => die.IsHeld);
             bool isHuman = !_matchManager.CurrentPlayer.IsBot;
 
-            if (!allDiceHeld && isHuman && _rollDiceSounds != null && _rollDiceSounds.Length > 0)
+            // JUICE: Leichtes Wackeln beim Würfeln für mehr Wucht (Nur für menschliche Spieler)
+            if (!allDiceHeld && isHuman)
             {
-                int randomIndex = UnityEngine.Random.Range(0, _rollDiceSounds.Length);
-                AudioManager.Instance.PlaySFX(_rollDiceSounds[randomIndex]);
+                if (_cameraShake != null) _cameraShake.Shake(0.15f, 0.05f);
+                
+                if (_rollDiceSounds != null && _rollDiceSounds.Length > 0)
+                {
+                    int randomIndex = UnityEngine.Random.Range(0, _rollDiceSounds.Length);
+                    AudioManager.Instance.PlaySFX(_rollDiceSounds[randomIndex]);
+                }
             }
 
             float duration = 1.5f;
@@ -267,18 +391,22 @@ namespace DiceGame.Controllers
 
             yield return new WaitForSeconds(duration);
 
-            if (cup.RollsLeft > 0 && !_matchManager.CurrentPlayer.IsBot)
-            {
-                _rollButton.interactable = true;
-            }
-
-            if (_diceCanvasGroup != null && !_matchManager.CurrentPlayer.IsBot)
-            {
-                _diceCanvasGroup.blocksRaycasts = true;
-            }
-
             _isDiceRolling = false;
+
             UpdatePotentialScores(cup, _matchManager.CurrentPlayer);
+
+            if (isHuman && _hintView != null)
+            {
+                ScoreCategory? bestHint = HintCalculator.GetBestHint(
+                    _matchManager.CurrentPlayer.ScoreCard, 
+                    cup.Dice, 
+                    cup.RollsLeft);
+                
+                if (bestHint.HasValue) _hintView.ShowHint(bestHint.Value);
+            }
+
+            if (cup.RollsLeft > 0 && isHuman) _rollButton.interactable = true;
+            if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = true;
         }
 
         private void HandleDieStateChanged(int index, bool isHeld)
@@ -296,24 +424,30 @@ namespace DiceGame.Controllers
 
         private IEnumerator WaitAndApplyScore(Player player, ScoreCategory category, int points)
         {
-            // Warte so lange, wie die Würfel noch in Bewegung sind
             while (_isDiceRolling)
             {
                 yield return null; 
             }
 
-            // Erst JETZT werden die Punkte visuell eingetragen
             if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(_scoreCategorySound);
-
+            
             _scoreCardView.SetFinalScore(category, points);
             _scoreCardView.ClearAllPotentials();
             _scoreCardView.UpdateTotals(
                 player.ScoreCard.UpperSectionRaw,
                 player.ScoreCard.UpperSectionBonus,
-                player.ScoreCard.GrandTotal
+                player.ScoreCard.GrandTotal,
+                player.ScoreCard.IsBonusClaimed
             );
 
             UpdateMultiplayerScoreTracker();
+
+            // JUICE: Konfetti & starkes Wackeln bei erfolgreichem Nicer Dicer!
+            if (category == ScoreCategory.NicerDicer && points > 0)
+            {
+                if (_confettiParticles != null) _confettiParticles.Play();
+                if (_cameraShake != null) _cameraShake.Shake(0.5f, 0.2f);
+            }
         }
 
 

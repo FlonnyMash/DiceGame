@@ -103,6 +103,14 @@ namespace DiceGame.UI.Views
                 }
             }
         }
+        // In ScoreCardView.cs hinzufügen:
+        public void ClearAllHighlights()
+        {
+            foreach (var row in _rows.Values)
+            {
+                row.SetHighlight(false);
+            }
+        }
 
         public void UpdateTotals(int upperRaw, int upperBonus, int grandTotal, bool isBonusClaimed = false)
         {

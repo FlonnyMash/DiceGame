@@ -19,7 +19,7 @@
   "cat_fullhouse": "Full House",
   "cat_smallstraight": "Scala corta",
   "cat_largestraight": "Scala grande",
-  "cat_nicerdicer": "Nicer Dicer",
+  "cat_nicerdicer": "Dice!",
   "cat_chance": "Chance",
   "you_vs_bot": "Tu contro <color=red>Bot</color>",
   "players_count": "{0} Giocatori",
@@ -46,5 +46,12 @@
   "input_player_two": "Giocatore 2",
   "input_player_three": "Giocatore 3",
   "input_player_four": "Giocatore 4",
-  "btn_main_menu": "Menu principale"
+  "btn_main_menu": "Menu principale",
+  "hint_threeofakind": "Tris",
+  "hint_fourofakind": "Poker",
+  "hint_fullhouse": "Full House",
+  "hint_smallstraight": "Scala corta",
+  "hint_largestraight": "Scala grande",
+  "hint_nicerdicer": "Dice!",
+  "hint_chance": "Chance"
 }

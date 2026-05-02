@@ -19,7 +19,7 @@
   "cat_fullhouse": "Full House",
   "cat_smallstraight": "Sequência menor",
   "cat_largestraight": "Sequência maior",
-  "cat_nicerdicer": "Nicer Dicer",
+  "cat_nicerdicer": "Dice!",
   "cat_chance": "Sorte",
   "you_vs_bot": "Você contra <color=red>Bot</color>",
   "players_count": "{0} Jogadores",
@@ -46,5 +46,12 @@
   "input_player_two": "Jogador 2",
   "input_player_three": "Jogador 3",
   "input_player_four": "Jogador 4",
-  "btn_main_menu": "Menu principal"
+  "btn_main_menu": "Menu principal",
+  "hint_threeofakind": "Trinca",
+  "hint_fourofakind": "Quadra",
+  "hint_fullhouse": "Full House",
+  "hint_smallstraight": "Sequência menor",
+  "hint_largestraight": "Sequência maior",
+  "hint_nicerdicer": "Dice!",
+  "hint_chance": "Sorte"
 }

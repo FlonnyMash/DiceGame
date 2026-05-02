@@ -19,7 +19,7 @@
   "cat_fullhouse": "Full House",
   "cat_smallstraight": "Small Straight",
   "cat_largestraight": "Large Straight",
-  "cat_nicerdicer": "Nicer Dicer",
+  "cat_nicerdicer": "Dice!",
   "cat_chance": "Chance",
   "you_vs_bot": "You vs <color=red>Bot</color>",
   "players_count": "{0} Players",
@@ -46,5 +46,12 @@
   "input_player_two": "Player 2",
   "input_player_three": "Player 3",
   "input_player_four": "Player 4",
-  "btn_main_menu": "Main Menu"
+  "btn_main_menu": "Main Menu",
+  "hint_threeofakind": "Three Of A Kind",
+  "hint_fourofakind": "Four Of A Kind",
+  "hint_fullhouse": "Full House",
+  "hint_smallstraight": "Small Straight",
+  "hint_largestraight": "Large Straight",
+  "hint_nicerdicer": "Dice!",
+  "hint_chance": "Chance"
 }

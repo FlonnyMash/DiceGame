@@ -19,7 +19,7 @@
   "cat_fullhouse": "Full House",
   "cat_smallstraight": "Escalera menor",
   "cat_largestraight": "Escalera mayor",
-  "cat_nicerdicer": "Nicer Dicer",
+  "cat_nicerdicer": "Dice!",
   "cat_chance": "Suerte",
   "you_vs_bot": "Tú contra <color=red>Bot</color>",
   "players_count": "{0} Jugadores",
@@ -46,5 +46,12 @@
   "input_player_two": "Jugador 2",
   "input_player_three": "Jugador 3",
   "input_player_four": "Jugador 4",
-  "btn_main_menu": "Menú principal"
+  "btn_main_menu": "Menú principal",
+  "hint_threeofakind": "Trío",
+  "hint_fourofakind": "Póker",
+  "hint_fullhouse": "Full House",
+  "hint_smallstraight": "Escalera menor",
+  "hint_largestraight": "Escalera mayor",
+  "hint_nicerdicer": "Dice!",
+  "hint_chance": "Suerte"
 }

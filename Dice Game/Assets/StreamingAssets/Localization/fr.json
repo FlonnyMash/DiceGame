@@ -19,7 +19,7 @@
   "cat_fullhouse": "Full House",
   "cat_smallstraight": "Petite suite",
   "cat_largestraight": "Grande suite",
-  "cat_nicerdicer": "Nicer Dicer",
+  "cat_nicerdicer": "Dice!",
   "cat_chance": "Chance",
   "you_vs_bot": "Vous contre <color=red>Bot</color>",
   "players_count": "{0} Joueurs",
@@ -46,5 +46,12 @@
   "input_player_two": "Joueur 2",
   "input_player_three": "Joueur 3",
   "input_player_four": "Joueur 4",
-  "btn_main_menu": "Menu principal"
+  "btn_main_menu": "Menu principal",
+  "hint_threeofakind": "Brelan",
+  "hint_fourofakind": "Carré",
+  "hint_fullhouse": "Full House",
+  "hint_smallstraight": "Petite suite",
+  "hint_largestraight": "Grande suite",
+  "hint_nicerdicer": "Dice!",
+  "hint_chance": "Chance"
 }

@@ -37,5 +37,18 @@ namespace DiceGame.Core.Models
             IsHeld = false;
             OnStateChanged?.Invoke(this);
         }
+
+        // --- DEBUG & TESTING ---
+#if UNITY_EDITOR
+        /// <summary>
+        /// Nur für den Unity Editor: Zwingt den Würfel auf einen bestimmten Wert, 
+        /// um seltene Kombinationen (wie Nicer Dicer) schnell zu testen.
+        /// </summary>
+        public void DebugForceValue(int value)
+        {
+            Value = value;
+        }
+#endif
+
     }
 }
