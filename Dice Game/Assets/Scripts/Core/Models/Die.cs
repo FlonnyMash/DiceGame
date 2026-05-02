@@ -39,7 +39,7 @@ namespace DiceGame.Core.Models
         }
 
         // --- DEBUG & TESTING ---
-#if UNITY_EDITOR
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
         /// <summary>
         /// Nur für den Unity Editor: Zwingt den Würfel auf einen bestimmten Wert, 
         /// um seltene Kombinationen (wie Nicer Dicer) schnell zu testen.
