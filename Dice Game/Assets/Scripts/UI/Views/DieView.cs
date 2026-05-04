@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.UI; 
+using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using System;
 using System.Collections;
@@ -9,25 +9,52 @@ namespace DiceGame.UI.Views
     public class DieView : MonoBehaviour, IPointerClickHandler
     {
         [Header("UI References")]
-        [SerializeField] private Image _dieImage; 
-        [SerializeField] private GameObject _heldHighlight; 
-        [SerializeField] private GameObject _heldBoarder; 
+        [SerializeField] private Image _dieImage;
+        [SerializeField] private GameObject _heldHighlight;
+        [SerializeField] private GameObject _heldBoarder;
 
         [Header("Dice Faces (1 to 6)")]
-        [SerializeField] private Sprite[] _diceFaces; 
+        [SerializeField] private Sprite[] _diceFaces;
 
-        [Header("Animation")]
+        [Header("Animation & Transform")]
         [SerializeField] private Animator _animator;
-        
-        // Wir nutzen jetzt Trigger für präzise Steuerung
-        private const string ANIM_TRIGGER_SELECT = "OnSelect"; 
-        private const string ANIM_TRIGGER_DESELECT = "OnDeselect"; 
-        private const string ANIM_TRIGGER_RESET = "SilentReset"; 
+        [SerializeField] private float _moveSpeed = 0.25f;
+        [SerializeField] private float _scatterScale = 0.7f;
 
-        public event Action<int> OnDieClicked; 
+        private const string ANIM_TRIGGER_SELECT = "OnSelect";
+        private const string ANIM_TRIGGER_DESELECT = "OnDeselect";
+
+        public event Action<int> OnDieClicked;
 
         private int _dieIndex;
-        private bool _isHeld; 
+        private bool _isHeld;
+
+        private Vector2 _initialPosition;
+        private Quaternion _initialRotation;
+        private Vector3 _initialScale; 
+        
+        private Vector2 _scatteredPosition;
+        private Quaternion _scatteredRotation;
+
+        private Coroutine _moveRoutine;
+
+        public RectTransform Rect => GetComponent<RectTransform>();
+        public Vector2 InitialPosition => _initialPosition;
+        public Vector2 ScatteredPosition => _scatteredPosition;
+
+        // NEU: Rechnet die aktuelle Scattered Position in World Space um (Trick!)
+        public Vector3 ScatteredWorldPosition
+        {
+            get
+            {
+                RectTransform rect = GetComponent<RectTransform>();
+                Vector2 currentAnchored = rect.anchoredPosition;
+                rect.anchoredPosition = _scatteredPosition;
+                Vector3 worldPos = rect.position;
+                rect.anchoredPosition = currentAnchored;
+                return worldPos;
+            }
+        }
 
         private void Awake()
         {
@@ -37,12 +64,19 @@ namespace DiceGame.UI.Views
         public void Initialize(int index)
         {
             _dieIndex = index;
+            
+            RectTransform rect = GetComponent<RectTransform>();
+            _initialPosition = rect.anchoredPosition;
+            _initialRotation = rect.localRotation;
+            _initialScale = rect.localScale;
+            
+            _scatteredPosition = _initialPosition;
+            _scatteredRotation = _initialRotation;
         }
 
-        // Kümmert sich NUR noch um das Aussehen (Bilder/Rahmen), NICHT mehr um Animationen!
         public void UpdateView(int value, bool isHeld)
         {
-            _isHeld = isHeld; 
+            _isHeld = isHeld;
 
             if (value >= 1 && value <= 6 && _diceFaces.Length == 6)
             {
@@ -53,48 +87,191 @@ namespace DiceGame.UI.Views
             if (_heldBoarder != null) _heldBoarder.SetActive(isHeld);
         }
 
-        // --- NEU: Explizite Animations-Steuerung ---
-        
-        // Wird beim Klicken (oder durch den Presenter) aufgerufen
+        public void SetVisibility(bool isVisible)
+        {
+            if (_dieImage != null) _dieImage.enabled = isVisible;
+            if (_heldHighlight != null) _heldHighlight.SetActive(isVisible && _isHeld);
+            if (_heldBoarder != null) _heldBoarder.SetActive(isVisible && _isHeld);
+        }
+
+        // NEU: Akzeptiert jetzt eine World Position!
+        public void SetScatterTargetWorld(Vector3 targetWorldPos, float randomZRotation)
+        {
+            RectTransform rect = GetComponent<RectTransform>();
+            Vector2 oldPos = rect.anchoredPosition;
+            
+            // Setze ihn kurz auf die Weltposition, speichere den lokalen Wert, und setze ihn zurück
+            rect.position = targetWorldPos;
+            _scatteredPosition = rect.anchoredPosition;
+            rect.anchoredPosition = oldPos; 
+            
+            _scatteredRotation = Quaternion.Euler(0, 0, randomZRotation);
+        }
+
+        // NEU: Akzeptiert jetzt eine World Position!
+        public void ScatterWorld(Vector3 targetWorldPos, float randomZRotation)
+        {
+            if (_isHeld) return;
+
+            SetScatterTargetWorld(targetWorldPos, randomZRotation);
+
+            RectTransform rect = GetComponent<RectTransform>();
+            rect.anchoredPosition = _scatteredPosition;
+            rect.localRotation = _scatteredRotation;
+            rect.localScale = _initialScale * _scatterScale;
+        }
+
+        public void AnimateToState(bool isHeld)
+        {
+            if (_moveRoutine != null) StopCoroutine(_moveRoutine);
+            
+            Vector2 targetPos = isHeld ? _initialPosition : _scatteredPosition;
+            Quaternion targetRot = isHeld ? _initialRotation : _scatteredRotation;
+            Vector3 targetScale = isHeld ? _initialScale : _initialScale * _scatterScale;
+            
+            _moveRoutine = StartCoroutine(MoveRoutine(targetPos, targetRot, targetScale, _moveSpeed));
+        }
+
+        private IEnumerator MoveRoutine(Vector2 targetPos, Quaternion targetRot, Vector3 targetScale, float duration)
+        {
+            RectTransform rect = GetComponent<RectTransform>();
+            Vector2 startPos = rect.anchoredPosition;
+            Quaternion startRot = rect.localRotation;
+            Vector3 startScale = rect.localScale;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, elapsed / duration); 
+                
+                rect.anchoredPosition = Vector2.Lerp(startPos, targetPos, t);
+                rect.localRotation = Quaternion.Lerp(startRot, targetRot, t);
+                rect.localScale = Vector3.Lerp(startScale, targetScale, t);
+                yield return null;
+            }
+
+            rect.anchoredPosition = targetPos;
+            rect.localRotation = targetRot;
+            rect.localScale = targetScale;
+        }
+
+        public Coroutine SlideToPosition(Vector2 targetPos, float duration)
+        {
+            if (_moveRoutine != null) StopCoroutine(_moveRoutine);
+            _moveRoutine = StartCoroutine(SlideToPositionRoutine(targetPos, duration));
+            return _moveRoutine;
+        }
+
+        private IEnumerator SlideToPositionRoutine(Vector2 targetPos, float duration)
+        {
+            RectTransform rect = GetComponent<RectTransform>();
+            Vector2 startPos = rect.anchoredPosition;
+            Vector3 startScale = rect.localScale;
+            Vector3 targetScale = _initialScale * _scatterScale; 
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+                rect.anchoredPosition = Vector2.Lerp(startPos, targetPos, t);
+                rect.localScale = Vector3.Lerp(startScale, targetScale, t);
+                yield return null;
+            }
+            rect.anchoredPosition = targetPos;
+            rect.localScale = targetScale;
+        }
+
+        public Coroutine SlideBackToTray(float duration)
+        {
+            if (_moveRoutine != null) StopCoroutine(_moveRoutine);
+            _moveRoutine = StartCoroutine(SlideBackToTrayRoutine(duration));
+            return _moveRoutine;
+        }
+
+        private IEnumerator SlideBackToTrayRoutine(float duration)
+        {
+            RectTransform rect = GetComponent<RectTransform>();
+            Vector2 startPos = rect.anchoredPosition;
+            Quaternion startRot = rect.localRotation;
+            Vector3 startScale = rect.localScale;
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
+                rect.anchoredPosition = Vector2.Lerp(startPos, _initialPosition, t);
+                rect.localRotation = Quaternion.Lerp(startRot, _initialRotation, t);
+                rect.localScale = Vector3.Lerp(startScale, _initialScale, t); 
+                yield return null;
+            }
+
+            rect.anchoredPosition = _initialPosition;
+            rect.localRotation = _initialRotation;
+            rect.localScale = _initialScale;
+            _scatteredPosition = _initialPosition;
+            _scatteredRotation = _initialRotation;
+        }
+
         public void PlayToggleAnimation(bool isNowHeld)
         {
             if (_animator == null) return;
 
             if (isNowHeld)
             {
-                // 1. Zuerst den alten/falschen Trigger löschen!
                 _animator.ResetTrigger(ANIM_TRIGGER_DESELECT);
-                // 2. Dann den neuen setzen
                 _animator.SetTrigger(ANIM_TRIGGER_SELECT);
             }
             else
             {
-                // 1. Zuerst den alten/falschen Trigger löschen!
                 _animator.ResetTrigger(ANIM_TRIGGER_SELECT);
-                // 2. Dann den neuen setzen
                 _animator.SetTrigger(ANIM_TRIGGER_DESELECT);
             }
         }
 
-        // Wird vom Controller aufgerufen, wenn der Turn wechselt (ohne Animation!)
-        public void ResetToIdleSilent()
+        public void AnimateReset()
         {
-            _isHeld = false; 
+            _isHeld = false;
+            SetVisibility(true); 
 
-            // Visuelles hartes Reset
             if (_heldHighlight != null) _heldHighlight.SetActive(false);
             if (_heldBoarder != null) _heldBoarder.SetActive(false);
-            transform.localScale = Vector3.one;
 
             if (_animator != null)
             {
-                // DIE NUKLEARE OPTION: 
-                // Rebind() löscht sofort alle aktiven Trigger, bricht alle laufenden 
-                // Transitionen ab und setzt den Animator knallhart auf den Default-State 
-                // (Idle) des Layer 0 zurück. Keine Geister-Trigger können das überleben!
                 _animator.Rebind();
-                
-                // Zwingt Unity, dieses Rebind noch im exakt selben Frame zu berechnen
+                _animator.Update(0f);
+            }
+
+            if (_moveRoutine != null) StopCoroutine(_moveRoutine);
+            _moveRoutine = StartCoroutine(MoveRoutine(_initialPosition, _initialRotation, _initialScale, _moveSpeed));
+
+            _scatteredPosition = _initialPosition;
+            _scatteredRotation = _initialRotation;
+        }
+
+        public void ResetToIdleSilent()
+        {
+            _isHeld = false;
+            SetVisibility(true); 
+
+            if (_heldHighlight != null) _heldHighlight.SetActive(false);
+            if (_heldBoarder != null) _heldBoarder.SetActive(false);
+
+            if (_moveRoutine != null) StopCoroutine(_moveRoutine);
+            RectTransform rect = GetComponent<RectTransform>();
+            rect.localScale = _initialScale;
+            rect.anchoredPosition = _initialPosition;
+            rect.localRotation = _initialRotation;
+            
+            _scatteredPosition = _initialPosition;
+            _scatteredRotation = _initialRotation;
+
+            if (_animator != null)
+            {
+                _animator.Rebind();
                 _animator.Update(0f);
             }
         }
@@ -102,32 +279,6 @@ namespace DiceGame.UI.Views
         public void OnPointerClick(PointerEventData eventData)
         {
             OnDieClicked?.Invoke(_dieIndex);
-        }
-
-        public void AnimateRoll(int finalValue, float duration)
-        {
-            if (_isHeld) return; 
-            StartCoroutine(RollAnimationRoutine(finalValue, duration));
-        }
-
-        private IEnumerator RollAnimationRoutine(int finalValue, float duration)
-        {
-            float elapsed = 0f;
-            while (elapsed < duration)
-            {
-                if (_diceFaces.Length > 0)
-                {
-                    int randomFace = UnityEngine.Random.Range(0, _diceFaces.Length);
-                    _dieImage.sprite = _diceFaces[randomFace];
-                }
-                yield return new WaitForSeconds(0.05f);
-                elapsed += 0.05f;
-            }
-
-            if (finalValue >= 1 && finalValue <= 6 && _diceFaces.Length == 6)
-            {
-                _dieImage.sprite = _diceFaces[finalValue - 1];
-            }
         }
     }
 }
