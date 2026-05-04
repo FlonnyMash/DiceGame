@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
@@ -24,6 +23,7 @@ namespace DiceGame.Controllers
         [SerializeField] private PassDeviceView _passDeviceView;
         [SerializeField] private List<DieView> _dieViews;
         [SerializeField] private CanvasGroup _diceCanvasGroup;
+        [SerializeField] private Button _rollButton;
         [SerializeField] private ScoreCardView _scoreCardView;
         [SerializeField] private CanvasGroup _scoreCardCanvasGroup;
         [SerializeField] private GameOverView _gameOverView;
@@ -31,24 +31,6 @@ namespace DiceGame.Controllers
         [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
         [SerializeField] private Button _skipBotButton;
         [SerializeField] private HintView _hintView;
-        
-        [Header("Main Action Button (Roll & Toggle)")]
-        [SerializeField] private Button _mainActionButton;
-        [SerializeField] private Image _mainActionIcon;
-        [SerializeField] private Sprite _rollSprite;
-        [SerializeField] private Sprite _hideScorecardSprite;
-        [SerializeField] private Sprite _showScorecardSprite;
-
-        [Header("Main UI Animation")]
-        [SerializeField] private Animator _mainUIAnimator;
-
-        [Header("Dice Cup Settings")]
-        [SerializeField] private DiceCupView _diceCupView; 
-        
-        [Tooltip("Ein unsichtbares UI-Panel, das den Bereich vorgibt, in dem die Würfel liegen dürfen.")]
-        [SerializeField] private RectTransform _scatterArea; // NEU
-        [SerializeField] private float _diceSpacing = 140f; 
-        [SerializeField] private float _collectionRadius = 200f; 
         
         [Header("VFX & Feedback (JUICE)")]
         [SerializeField] private ParticleSystem _confettiParticles;
@@ -63,6 +45,7 @@ namespace DiceGame.Controllers
         [SerializeField] private AudioClip _scoreCategorySound;
         [SerializeField] private AudioClip _bonusClaimSound;
 
+        // --- CORE SYSTEM REFERENZEN ---
         private MatchManager _matchManager;
         private LocalPlayerInput _localInput;
         private Dictionary<Player, IPlayerInput> _playerInputs;
@@ -70,14 +53,10 @@ namespace DiceGame.Controllers
         private bool _isTransitioningTurn = false;
         private bool _isDiceRolling = false;
 
-        private void Awake()
-        {
-            if (_mainUIAnimator != null) 
-            {
-                _mainUIAnimator.SetBool("IsVisible", true);
-                _mainUIAnimator.Update(0f);
-            }
-        }
+        #if DEVELOPMENT_BUILD || UNITY_EDITOR
+        [Header("Debug")]
+        [SerializeField] private DebugMenuView _debugMenuView;
+#endif
 
         private void Start()
         {
@@ -89,48 +68,151 @@ namespace DiceGame.Controllers
             BindUIEvents();
             BindManagerEvents();
 
+            // Spiel starten!
             _matchManager.StartGame();
+
+            // Abonniere Sprachwechsel, um UI sofort zu aktualisieren
             LocalizationService.Instance.OnLanguageChanged += HandleLanguageChanged;
 
-            StartCoroutine(InitializeUIRoutine());
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (_debugMenuView != null)
+            {
+                _debugMenuView.OnForceSixesClicked += () => ApplyCheat(new int[] { 6, 6, 6, 6, 6 });
+                _debugMenuView.OnForceStraightClicked += () => ApplyCheat(new int[] { 1, 2, 3, 4, 5 });
+                _debugMenuView.OnResetBoardClicked += ResetMatchHard;
+                
+                // NEU: Bonus Event abonnieren
+                _debugMenuView.OnForceBonusClicked += ForceUpperBonus;
+            }
+#endif
         }
 
-        private IEnumerator InitializeUIRoutine()
+#if DEVELOPMENT_BUILD || UNITY_EDITOR
+        // --- DEBUG & CHEAT METHODEN ---
+
+        private void ApplyCheat(int[] forcedValues)
         {
-            yield return new WaitForEndOfFrame();
-            if (_mainUIAnimator != null) 
+            if (_isDiceRolling)
             {
-                _mainUIAnimator.SetBool("IsVisible", true);
+                Debug.LogWarning("<color=yellow>[DEBUG]</color> Cheat blockiert: Die Würfel rollen noch!");
+                return;
             }
-            UpdateMainActionUI();
+            
+            if (_matchManager == null || _matchManager.CurrentPlayer == null) return;
+
+            if (_matchManager.CurrentPlayer.IsBot)
+            {
+                Debug.LogWarning("<color=yellow>[DEBUG]</color> Cheat blockiert: Der Bot ist am Zug!");
+                return;
+            }
+
+            for (int i = 0; i < _matchManager.Cup.Dice.Count; i++)
+            {
+                if (i < forcedValues.Length)
+                {
+                    _matchManager.Cup.Dice[i].DebugForceValue(forcedValues[i]);
+                    _dieViews[i].UpdateView(forcedValues[i], _matchManager.Cup.Dice[i].IsHeld);
+                }
+            }
+
+            UpdatePotentialScores(_matchManager.Cup, _matchManager.CurrentPlayer);
+
+            if (_hintView != null)
+            {
+                ScoreCategory? bestHint = HintCalculator.GetBestHint(
+                    _matchManager.CurrentPlayer.ScoreCard, 
+                    _matchManager.Cup.Dice, 
+                    _matchManager.Cup.RollsLeft);
+                
+                if (bestHint.HasValue) _hintView.ShowHint(bestHint.Value);
+            }
+
+            Debug.Log($"<color=cyan>[DEBUG]</color> Cheat angewendet: {string.Join(", ", forcedValues)}");
         }
+
+        private void ResetMatchHard()
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+            Debug.Log("<color=cyan>[DEBUG]</color> Board (Szene) wurde zurückgesetzt!");
+        }
+
+        private void ForceUpperBonus()
+        {
+            if (_matchManager == null || _matchManager.CurrentPlayer == null) return;
+
+            Player player = _matchManager.CurrentPlayer;
+            
+            player.ScoreCard.SetScore(ScoreCategory.Ones, 3);
+            player.ScoreCard.SetScore(ScoreCategory.Twos, 6);
+            player.ScoreCard.SetScore(ScoreCategory.Threes, 9);
+            player.ScoreCard.SetScore(ScoreCategory.Fours, 12);
+            player.ScoreCard.SetScore(ScoreCategory.Fives, 15);
+            player.ScoreCard.SetScore(ScoreCategory.Sixes, 18);
+
+            _scoreCardView.SetFinalScore(ScoreCategory.Ones, 3);
+            _scoreCardView.SetFinalScore(ScoreCategory.Twos, 6);
+            _scoreCardView.SetFinalScore(ScoreCategory.Threes, 9);
+            _scoreCardView.SetFinalScore(ScoreCategory.Fours, 12);
+            _scoreCardView.SetFinalScore(ScoreCategory.Fives, 15);
+            _scoreCardView.SetFinalScore(ScoreCategory.Sixes, 18);
+
+            _scoreCardView.UpdateTotals(
+                player.ScoreCard.UpperSectionRaw,
+                player.ScoreCard.UpperSectionBonus,
+                player.ScoreCard.GrandTotal,
+                player.ScoreCard.IsBonusClaimed
+            );
+
+            Debug.Log("<color=cyan>[DEBUG]</color> Bonus erzwungen! Oberer Bereich hat nun exakt 63 Punkte.");
+        }
+
+        private void Update()
+        {
+            if (UnityEngine.InputSystem.Keyboard.current != null && 
+                UnityEngine.InputSystem.Keyboard.current.f1Key.wasPressedThisFrame)
+            {
+                ApplyCheat(new int[] { 6, 6, 6, 6, 6 });
+            }
+        }
+#endif
+
+        
 
         private void SetupCoreGame()
         {
+            // 1. Spieler-Modelle aus dem Main Menu laden
             List<Player> players = new List<Player>();
             foreach (var name in MatchData.PlayerNames)
             {
+                // Erkennen, ob es sich um den Bot handelt
                 bool isBot = name.Contains("Bot");
                 players.Add(new Player(name, isBot));
             }
 
+            // 2. Den MatchManager instanziieren (Reine C#-Logik!)
             _matchManager = new MatchManager(players);
+
+            // 3. Inputs dynamisch erstellen und zuweisen
             _playerInputs = new Dictionary<Player, IPlayerInput>();
-            _localInput = gameObject.AddComponent<LocalPlayerInput>();
+            _localInput = gameObject.AddComponent<LocalPlayerInput>(); // Ein Input für alle Menschen
 
             foreach (var p in players)
             {
-                if (p.IsBot) _playerInputs.Add(p, gameObject.AddComponent<BotPlayerInput>());
-                else _playerInputs.Add(p, _localInput);
+                if (p.IsBot)
+                {
+                    _playerInputs.Add(p, gameObject.AddComponent<BotPlayerInput>());
+                }
+                else
+                {
+                    _playerInputs.Add(p, _localInput);
+                }
             }
         }
 
         private void BindUIEvents()
         {
-            if (_mainActionButton != null)
-            {
-                _mainActionButton.onClick.AddListener(HandleMainAction);
-            }
+            // UI -> Local Input (Wir leiten Klicks nur noch an den Input weiter!)
+            _rollButton.onClick.AddListener(() => _localInput.TriggerRoll());
             
             _scoreCardView.Initialize();
             _scoreCardView.OnCategoryClicked += (cat) => _localInput.TriggerCategorySelected(cat);
@@ -143,8 +225,16 @@ namespace DiceGame.Controllers
                 _dieViews[i].OnDieClicked += (idx) => _localInput.TriggerToggleHold(idx);
             }
 
-            if (_skipBotButton != null) _skipBotButton.onClick.AddListener(HandleSkipBotClicked);
-            if (_passDeviceView != null) _passDeviceView.OnReadyClicked += HandlePlayerReady;
+            if (_skipBotButton != null)
+            {
+                _skipBotButton.onClick.AddListener(HandleSkipBotClicked);
+            }
+
+            if (_passDeviceView != null)
+            {
+                _passDeviceView.OnReadyClicked += HandlePlayerReady;
+            }
+
             if (_gameOverView != null)
             {
                 _gameOverView.OnRestartClicked += HandleRestart;
@@ -152,51 +242,9 @@ namespace DiceGame.Controllers
             }
         }
 
-        private void HandleMainAction()
-        {
-            bool isScoreboardVisible = _mainUIAnimator != null && _mainUIAnimator.GetBool("IsVisible");
-
-            if (isScoreboardVisible && _matchManager.Cup.RollsLeft > 0)
-            {
-                _localInput.TriggerRoll();
-            }
-            else
-            {
-                if (_mainUIAnimator != null)
-                {
-                    _mainUIAnimator.SetBool("IsVisible", !isScoreboardVisible);
-                }
-            }
-
-            UpdateMainActionUI();
-        }
-
-        private void UpdateMainActionUI()
-        {
-            if (_mainActionButton == null || _mainActionIcon == null || _matchManager == null) return;
-
-            bool isHuman = !_matchManager.CurrentPlayer.IsBot;
-            bool isScoreboardVisible = _mainUIAnimator != null && _mainUIAnimator.GetBool("IsVisible");
-            int rollsLeft = _matchManager.Cup.RollsLeft;
-
-            _mainActionButton.interactable = isHuman && !_isDiceRolling;
-
-            if (!isScoreboardVisible)
-            {
-                _mainActionIcon.sprite = _showScorecardSprite;
-            }
-            else if (rollsLeft > 0)
-            {
-                _mainActionIcon.sprite = _rollSprite;
-            }
-            else
-            {
-                _mainActionIcon.sprite = _hideScorecardSprite;
-            }
-        }
-
         private void BindManagerEvents()
         {
+            // MatchManager -> UI (Wir hören auf die Logik und spielen Animationen ab)
             _matchManager.OnTurnStarted += HandleTurnStarted;
             _matchManager.OnDiceRolled += HandleDiceRolled;
             _matchManager.OnDieStateChanged += HandleDieStateChanged;
@@ -206,14 +254,20 @@ namespace DiceGame.Controllers
             _matchManager.OnTurnEnded += HandleTurnEnded;
         }
 
+        // ==========================================
+        // EVENT HANDLER (Von der Kernlogik zur UI)
+        // ==========================================
+
         private void HandleTurnStarted(Player player)
         {
+            // 1. Welcher Input ist dran?
             foreach (var input in _playerInputs.Values) input.SetActive(false);
             
             var activeInput = _playerInputs[player];
             activeInput.SetActive(true);
             _matchManager.AttachInput(activeInput);
 
+            // 2. Pass Device Logik
             bool showPassDevice = false;
             if (_matchManager.Players.Count > 1 && _previousPlayer != null)
             {
@@ -221,6 +275,7 @@ namespace DiceGame.Controllers
                 bool isNextHuman = !player.IsBot;
                 if (wasHuman && isNextHuman) showPassDevice = true;
             }
+            
 
             if (showPassDevice)
             {
@@ -231,40 +286,47 @@ namespace DiceGame.Controllers
             {
                 StartVisualTurn(player);
             }
+
             _previousPlayer = player;
         }
-
+        
+        // 1. Der Parameter (Player playerWhoJustFinished) MUSS in die Klammern!
         private void HandleTurnEnded(Player playerWhoJustFinished)
         {
-            if (_isTransitioningTurn) return;
+            // Wir nutzen exakt den Variablennamen aus Zeile 49!
+            if (_isTransitioningTurn) return; 
+            
             _isTransitioningTurn = true;
+            
+            // 2. Wir geben das Paket an die Coroutine weiter
             StartCoroutine(TurnTransitionRoutine(playerWhoJustFinished));
         }
 
-        private IEnumerator TurnTransitionRoutine(Player playerWhoJustFinished)
+        // 3. Auch hier MUSS der Parameter in die Klammern!
+        private System.Collections.IEnumerator TurnTransitionRoutine(Player playerWhoJustFinished)
         {
             float delay = playerWhoJustFinished.IsBot ? 2.5f : 1.5f;
             yield return new WaitForSeconds(delay);
-            
+
             ResetAllDiceVisuals();
-            yield return new WaitForSeconds(0.3f); 
-            
-            if (_matchManager != null) _matchManager.AdvanceToNextTurn();
-            _isTransitioningTurn = false;
+
+            if (_matchManager != null)
+            {
+                _matchManager.AdvanceToNextTurn();
+            }
+
+            // 4. Türsteher wieder ausschalten (exakter Name aus Zeile 49!)
+            _isTransitioningTurn = false; 
         }
 
         private void StartVisualTurn(Player player)
         {
-            if (_mainUIAnimator != null) 
-            {
-                _mainUIAnimator.SetBool("IsVisible", true);
-            }
-
+            // UI aufräumen
             for (int i = 0; i < _dieViews.Count; i++)
             {
                 int currentValue = _matchManager.Cup.Dice[i].Value;
                 _dieViews[i].UpdateView(currentValue, false);
-                _dieViews[i].ResetToIdleSilent(); 
+                _dieViews[i].ResetToIdleSilent();
             }
 
             _scoreCardView.ClearAllPotentials();
@@ -272,10 +334,13 @@ namespace DiceGame.Controllers
             UpdateMultiplayerScoreTracker();
             RefreshUIForCurrentPlayer(player);
 
+            // Ist es ein Bot?
             if (player.IsBot)
             {
                 SetUIInteractable(false);
                 if (_skipBotButton != null) _skipBotButton.gameObject.SetActive(true);
+                
+                // Dem Bot Bescheid geben, dass er starten darf
                 var botInput = _playerInputs[player] as BotPlayerInput;
                 botInput?.StartBotTurn(_matchManager.Cup, player.ScoreCard);
             }
@@ -284,8 +349,6 @@ namespace DiceGame.Controllers
                 SetUIInteractable(true);
                 if (_skipBotButton != null) _skipBotButton.gameObject.SetActive(false);
             }
-
-            UpdateMainActionUI();
         }
 
         private void HandleDiceRolled(DiceCup cup)
@@ -293,190 +356,57 @@ namespace DiceGame.Controllers
             StartCoroutine(RollAnimationRoutine(cup));
         }
 
-        // NEU: Berechnet World Space Positionen basierend auf dem _scatterArea Panel
-        private Vector3 GetValidScatterPosition(List<Vector3> usedPositions)
-        {
-            if (_scatterArea == null) return Vector3.zero;
-
-            Vector3 finalPos = Vector3.zero;
-            bool foundValidSpot = false;
-            
-            // Holt die echten globalen Ecken des UI Panels!
-            Vector3[] corners = new Vector3[4];
-            _scatterArea.GetWorldCorners(corners);
-            
-            float padding = 50f; 
-            float minX = corners[0].x + padding;
-            float maxX = corners[2].x - padding;
-            float minY = corners[0].y + padding;
-            float maxY = corners[2].y - padding;
-
-            for (int attempt = 0; attempt < 50; attempt++)
-            {
-                float randX = UnityEngine.Random.Range(minX, maxX);
-                float randY = UnityEngine.Random.Range(minY, maxY);
-                finalPos = new Vector3(randX, randY, corners[0].z);
-                foundValidSpot = true;
-                
-                foreach (var usedPos in usedPositions)
-                {
-                    if (Vector3.Distance(finalPos, usedPos) < _diceSpacing)
-                    {
-                        foundValidSpot = false;
-                        break;
-                    }
-                }
-                if (foundValidSpot) break;
-            }
-            return finalPos;
-        }
-
         private IEnumerator RollAnimationRoutine(DiceCup cup)
         {
             _isDiceRolling = true;
-            UpdateMainActionUI(); 
-            
-            _scoreCardView.ClearAllPotentials();
-            _scoreCardView.ClearAllHighlights();
-            if (_hintView != null) _hintView.HideHint();
-            if (_diceCanvasGroup != null) _diceCanvasGroup.blocksRaycasts = false;
 
-            if (_mainUIAnimator != null) 
-            {
-                _mainUIAnimator.SetBool("IsVisible", false);
-            }
+            // UI SOFORT aufräumen
+            _scoreCardView.ClearAllPotentials();
+            _scoreCardView.ClearAllHighlights(); 
+            if (_hintView != null) _hintView.HideHint();
+
+            if (_diceCanvasGroup != null) _diceCanvasGroup.blocksRaycasts = false;
+            _rollButton.interactable = false;
 
             bool allDiceHeld = cup.Dice.All(die => die.IsHeld);
             bool isHuman = !_matchManager.CurrentPlayer.IsBot;
 
-            if (!allDiceHeld)
+            // JUICE: Leichtes Wackeln beim Würfeln für mehr Wucht (Nur für menschliche Spieler)
+            if (!allDiceHeld && isHuman)
             {
-                List<Coroutine> slideRoutines = new List<Coroutine>();
-                List<DieView> diceToCollect = new List<DieView>();
+                if (_cameraShake != null) _cameraShake.Shake(0.15f, 0.05f);
                 
-                for (int i = 0; i < cup.Dice.Count; i++)
+                if (_rollDiceSounds != null && _rollDiceSounds.Length > 0)
                 {
-                    if (!cup.Dice[i].IsHeld)
-                    {
-                        Vector2 stagingPos = _dieViews[i].InitialPosition + new Vector2(0, 200f);
-                        slideRoutines.Add(_dieViews[i].SlideToPosition(stagingPos, 0.3f));
-                        diceToCollect.Add(_dieViews[i]);
-                    }
-                }
-                
-                foreach (var routine in slideRoutines) yield return routine;
-                yield return new WaitForSeconds(0.2f);
-
-                if (_diceCupView != null)
-                {
-                    bool allCollected = false;
-                    bool shakeFinished = false;
-
-                    Action onDrag = () => 
-                    {
-                        for (int i = diceToCollect.Count - 1; i >= 0; i--)
-                        {
-                            if (Vector3.Distance(_diceCupView.CupImageRect.position, diceToCollect[i].Rect.position) < _collectionRadius)
-                            {
-                                diceToCollect[i].SetVisibility(false);
-                                diceToCollect.RemoveAt(i);
-                            }
-                        }
-                        if (diceToCollect.Count == 0) allCollected = true;
-                    };
-
-                    Action onShakeComplete = () => 
-                    {
-                        if (allCollected) shakeFinished = true;
-                    };
-                    
-                    _diceCupView.OnCupDragged += onDrag;
-                    _diceCupView.OnShakeCompleted += onShakeComplete;
-                    
-                    if (isHuman)
-                    {
-                        _diceCupView.EnableInteraction(); 
-                        while (!shakeFinished) yield return null;
-                    }
-                    else
-                    {
-                        foreach (var d in diceToCollect) d.SetVisibility(false);
-                        yield return _diceCupView.AutoShakeRoutine();
-                    }
-                    
-                    _diceCupView.OnCupDragged -= onDrag;
-                    _diceCupView.OnShakeCompleted -= onShakeComplete;
-                    
-                    _diceCupView.DisableInteraction();
+                    int randomIndex = UnityEngine.Random.Range(0, _rollDiceSounds.Length);
+                    AudioManager.Instance.PlaySFX(_rollDiceSounds[randomIndex]);
                 }
             }
 
-            List<Vector3> usedPositions = new List<Vector3>();
-            
+            float duration = 1.5f;
             for (int i = 0; i < cup.Dice.Count; i++)
             {
-                if (!cup.Dice[i].IsHeld)
-                {
-                    Vector3 finalPos = GetValidScatterPosition(usedPositions);
-                    usedPositions.Add(finalPos);
-                    
-                    float randomRot = UnityEngine.Random.Range(0f, 360f);
-                    
-                    _dieViews[i].UpdateView(cup.Dice[i].Value, false);
-                    _dieViews[i].ScatterWorld(finalPos, randomRot);
-                }
+                _dieViews[i].AnimateRoll(cup.Dice[i].Value, duration);
             }
 
-            if (!allDiceHeld)
-            {
-                if (_rollDiceSounds != null && _rollDiceSounds.Length > 0 && isHuman)
-                {
-                    AudioManager.Instance.PlaySFX(_rollDiceSounds[UnityEngine.Random.Range(0, _rollDiceSounds.Length)]);
-                }
-                
-                if (_diceCupView != null)
-                {
-                    yield return _diceCupView.AnimateRevealRoutine();
-                }
-
-                for (int i = 0; i < cup.Dice.Count; i++)
-                {
-                    if (!cup.Dice[i].IsHeld) _dieViews[i].SetVisibility(true);
-                }
-
-                if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = true;
-
-                yield return new WaitForSeconds(2.0f); 
-
-                if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = false;
-
-                List<Coroutine> returnRoutines = new List<Coroutine>();
-                for (int i = 0; i < cup.Dice.Count; i++)
-                {
-                    if (!cup.Dice[i].IsHeld)
-                    {
-                        returnRoutines.Add(_dieViews[i].SlideBackToTray(0.6f));
-                    }
-                }
-                
-                yield return new WaitForSeconds(0.65f); 
-            }
-
-            if (_mainUIAnimator != null) _mainUIAnimator.SetBool("IsVisible", true);
-            if (_diceCupView != null) _diceCupView.ResetCup();
+            yield return new WaitForSeconds(duration);
 
             _isDiceRolling = false;
+
             UpdatePotentialScores(cup, _matchManager.CurrentPlayer);
 
             if (isHuman && _hintView != null)
             {
-                ScoreCategory? bestHint = HintCalculator.GetBestHint(_matchManager.CurrentPlayer.ScoreCard, cup.Dice, cup.RollsLeft);
+                ScoreCategory? bestHint = HintCalculator.GetBestHint(
+                    _matchManager.CurrentPlayer.ScoreCard, 
+                    cup.Dice, 
+                    cup.RollsLeft);
+                
                 if (bestHint.HasValue) _hintView.ShowHint(bestHint.Value);
             }
 
+            if (cup.RollsLeft > 0 && isHuman) _rollButton.interactable = true;
             if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = true;
-            
-            UpdateMainActionUI(); 
         }
 
         private void HandleDieStateChanged(int index, bool isHeld)
@@ -484,63 +414,51 @@ namespace DiceGame.Controllers
             int currentValue = _matchManager.Cup.Dice[index].Value;
             _dieViews[index].UpdateView(currentValue, isHeld);
             _dieViews[index].PlayToggleAnimation(isHeld);
-            
-            bool isScoreboardVisible = _mainUIAnimator != null && _mainUIAnimator.GetBool("IsVisible");
-
-            if (!isScoreboardVisible)
-            {
-                if (!isHeld)
-                {
-                    // Hole echte World Positions für die Distanzberechnung
-                    List<Vector3> usedPositions = new List<Vector3>();
-                    for (int i = 0; i < _dieViews.Count; i++)
-                    {
-                        if (i != index && !_matchManager.Cup.Dice[i].IsHeld)
-                        {
-                            usedPositions.Add(_dieViews[i].ScatteredWorldPosition);
-                        }
-                    }
-                    
-                    Vector3 newPos = GetValidScatterPosition(usedPositions);
-                    float randomRot = UnityEngine.Random.Range(0f, 360f);
-                    _dieViews[index].SetScatterTargetWorld(newPos, randomRot);
-                }
-
-                _dieViews[index].AnimateToState(isHeld);
-            }
         }
 
         private void HandleScoreApplied(Player player, ScoreCategory category, int points)
         {
+            // Wir starten eine kleine Hilfs-Routine, die wartet, bis die Würfel liegen
             StartCoroutine(WaitAndApplyScore(player, category, points));
         }
 
         private IEnumerator WaitAndApplyScore(Player player, ScoreCategory category, int points)
         {
-            while (_isDiceRolling) yield return null;
+            while (_isDiceRolling)
+            {
+                yield return null; 
+            }
 
             if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(_scoreCategorySound);
-
+            
             _scoreCardView.SetFinalScore(category, points);
             _scoreCardView.ClearAllPotentials();
-            _scoreCardView.UpdateTotals(player.ScoreCard.UpperSectionRaw, player.ScoreCard.UpperSectionBonus, player.ScoreCard.GrandTotal, player.ScoreCard.IsBonusClaimed);
+            _scoreCardView.UpdateTotals(
+                player.ScoreCard.UpperSectionRaw,
+                player.ScoreCard.UpperSectionBonus,
+                player.ScoreCard.GrandTotal,
+                player.ScoreCard.IsBonusClaimed
+            );
+
             UpdateMultiplayerScoreTracker();
 
+            // JUICE: Konfetti & starkes Wackeln bei erfolgreichem Nicer Dicer!
             if (category == ScoreCategory.NicerDicer && points > 0)
             {
                 if (_confettiParticles != null) _confettiParticles.Play();
                 if (_cameraShake != null) _cameraShake.Shake(0.5f, 0.2f);
             }
-            
-            UpdateMainActionUI(); 
         }
+
 
         private void ResetAllDiceVisuals()
         {
             if (_dieViews == null) return;
+
+            // Geht alle deine Würfel durch und setzt sie lautlos zurück
             for (int i = 0; i < _dieViews.Count; i++)
             {
-                _dieViews[i].AnimateReset();
+                _dieViews[i].ResetToIdleSilent();
             }
         }
 
@@ -554,10 +472,20 @@ namespace DiceGame.Controllers
         {
             SetUIInteractable(false);
             if (_gameOverView == null) return;
-            
-            if (rankings.Count == 1) _gameOverView.ShowSinglePlayer(rankings[0].ScoreCard.GrandTotal);
-            else _gameOverView.ShowMultiPlayer(rankings);
+
+            if (rankings.Count == 1)
+            {
+                _gameOverView.ShowSinglePlayer(rankings[0].ScoreCard.GrandTotal);
+            }
+            else
+            {
+                _gameOverView.ShowMultiPlayer(rankings);
+            }
         }
+
+        // ==========================================
+        // UI HELPER METHODEN
+        // ==========================================
 
         private void HandleSkipBotClicked()
         {
@@ -589,26 +517,31 @@ namespace DiceGame.Controllers
         private void RefreshUIForCurrentPlayer(Player player)
         {
             _scoreCardView.RefreshDisplay(player.ScoreCard);
+
             if (_currentPlayerNameText != null)
             {
                 if (_matchManager.Players.Count == 1)
                 {
                     int currentHighScore = PlayerPrefs.GetInt("HighScore", 0);
                     int currentScore = player.ScoreCard.GrandTotal;
+
                     if (currentScore > currentHighScore && currentHighScore > 0)
                     {
+                        // NEU: Nutze den Service für den Rekord-Text
                         _currentPlayerNameText.text = LocalizationService.Instance.GetText("new_record", currentScore);
                         _currentPlayerNameText.color = Color.green;
                     }
                     else
                     {
                         int displayScore = Mathf.Max(currentHighScore, currentScore);
+                        // NEU: Nutze den Service für den Highscore-Text
                         _currentPlayerNameText.text = LocalizationService.Instance.GetText("high_score", displayScore);
                         _currentPlayerNameText.color = Color.yellow;
                     }
                 }
                 else
                 {
+                    // NEU: Nutze den Service für die Anzeige, wer am Zug ist
                     _currentPlayerNameText.text = LocalizationService.Instance.GetText("turn_indicator", player.Name);
                     _currentPlayerNameText.color = player.IsBot ? Color.red : Color.white;
                 }
@@ -617,7 +550,12 @@ namespace DiceGame.Controllers
 
         private void UpdateMultiplayerScoreTracker()
         {
-            if (_multiplayerScoreTrackerText == null || _matchManager.Players.Count <= 1) return;
+            if (_multiplayerScoreTrackerText == null || _matchManager.Players.Count <= 1)
+            {
+                if (_multiplayerScoreTrackerText != null) _multiplayerScoreTrackerText.gameObject.SetActive(false);
+                return;
+            }
+
             _multiplayerScoreTrackerText.gameObject.SetActive(true);
             string trackerString = string.Join("   |   ", _matchManager.Players.Select(p => $"{p.Name}: {p.ScoreCard.GrandTotal}"));
             _multiplayerScoreTrackerText.text = trackerString;
@@ -625,7 +563,7 @@ namespace DiceGame.Controllers
 
         public void SetUIInteractable(bool isInteractable)
         {
-            if (_mainActionButton != null) _mainActionButton.interactable = isInteractable;
+            if (_rollButton != null) _rollButton.interactable = isInteractable;
             if (_scoreCardCanvasGroup != null)
             {
                 _scoreCardCanvasGroup.interactable = isInteractable;
@@ -633,18 +571,25 @@ namespace DiceGame.Controllers
             }
         }
 
+        // ==========================================
+        // SCENE MANAGEMENT & SETTINGS
+        // ==========================================
+
         public void OpenSettings() 
-        {
-            if (_settingsPanel != null)
+        { 
+            if (_settingsPanel != null) 
             {
-                _settingsPanel.SetActive(true);
-                if (_settingsAnimator != null) _settingsAnimator.SetBool("IsVisible", true);
+                _settingsPanel.SetActive(true); 
+                if (_settingsAnimator != null)
+                {
+                    _settingsAnimator.SetBool("IsVisible", true); 
+                }
             }
         }
 
         public void CloseSettings() 
-        {
-            StartCoroutine(CloseSettingsRoutine());
+        { 
+            StartCoroutine(CloseSettingsRoutine()); 
         }
 
         private IEnumerator CloseSettingsRoutine()
@@ -652,27 +597,43 @@ namespace DiceGame.Controllers
             if (_settingsAnimator != null)
             {
                 _settingsAnimator.SetBool("IsVisible", false);
-                yield return new WaitForSeconds(0.5f);
+                // Warte, bis die Slide-Out Animation fertig ist (Zeit ggf. anpassen)
+                yield return new WaitForSeconds(0.5f); 
             }
-            if (_settingsPanel != null) _settingsPanel.SetActive(false);
+            
+            if (_settingsPanel != null) 
+            {
+                _settingsPanel.SetActive(false);
+            }
         }
 
-        public void GoToMainMenu() { SceneManager.LoadScene("MainMenuScene"); }
+        public void GoToMainMenu() 
+        { 
+            SceneManager.LoadScene("MainMenuScene"); 
+        }
+
         private void HandleRestart() { SceneManager.LoadScene(SceneManager.GetActiveScene().name); }
         private void HandleMainMenu() { SceneManager.LoadScene("MainMenuScene"); }
 
         private void OnDestroy()
         {
-            if (_mainActionButton != null) _mainActionButton.onClick.RemoveListener(HandleMainAction);
+            if (_rollButton != null) _rollButton.onClick.RemoveAllListeners();
             LocalizationService.Instance.OnLanguageChanged -= HandleLanguageChanged;
-            if (_matchManager != null) _matchManager.OnTurnEnded -= HandleTurnEnded;
+            if (_matchManager != null)
+            {
+                _matchManager.OnTurnEnded -= HandleTurnEnded;
+            }
         }
 
         private void HandleLanguageChanged()
         {
+            // Aktualisiert Namen und Turn-Anzeige
             RefreshUIForCurrentPlayer(_matchManager.CurrentPlayer);
+            
+            // NEU: Aktualisiert die Punktekarte (Einser, Full House etc.)
             _scoreCardView.UpdateTranslations();
             _scoreCardView.RefreshDisplay(_matchManager.CurrentPlayer.ScoreCard);
         }
     }
+    
 }
