@@ -91,7 +91,107 @@ namespace DiceGame.Controllers
             _matchManager.StartGame();
             LocalizationService.Instance.OnLanguageChanged += HandleLanguageChanged;
             StartCoroutine(InitializeUIRoutine());
+            #if DEVELOPMENT_BUILD || UNITY_EDITOR
+            if (_debugMenuView != null)
+            {
+                _debugMenuView.OnForceSixesClicked += () => ApplyCheat(new int[] { 6, 6, 6, 6, 6 });
+                _debugMenuView.OnForceStraightClicked += () => ApplyCheat(new int[] { 1, 2, 3, 4, 5 });
+                _debugMenuView.OnResetBoardClicked += ResetMatchHard;
+                
+                // NEU: Bonus Event abonnieren
+                _debugMenuView.OnForceBonusClicked += ForceUpperBonus;
+            }
+#endif
         }
+
+        #if DEVELOPMENT_BUILD || UNITY_EDITOR
+        // --- DEBUG & CHEAT METHODEN ---
+
+        private void ApplyCheat(int[] forcedValues)
+        {
+            if (_isDiceRolling)
+            {
+                Debug.LogWarning("<color=yellow>[DEBUG]</color> Cheat blockiert: Die Würfel rollen noch!");
+                return;
+            }
+            
+            if (_matchManager == null || _matchManager.CurrentPlayer == null) return;
+
+            if (_matchManager.CurrentPlayer.IsBot)
+            {
+                Debug.LogWarning("<color=yellow>[DEBUG]</color> Cheat blockiert: Der Bot ist am Zug!");
+                return;
+            }
+
+            for (int i = 0; i < _matchManager.Cup.Dice.Count; i++)
+            {
+                if (i < forcedValues.Length)
+                {
+                    _matchManager.Cup.Dice[i].DebugForceValue(forcedValues[i]);
+                    _dieViews[i].UpdateView(forcedValues[i], _matchManager.Cup.Dice[i].IsHeld);
+                }
+            }
+
+            UpdatePotentialScores(_matchManager.Cup, _matchManager.CurrentPlayer);
+
+            if (_hintView != null)
+            {
+                ScoreCategory? bestHint = HintCalculator.GetBestHint(
+                    _matchManager.CurrentPlayer.ScoreCard, 
+                    _matchManager.Cup.Dice, 
+                    _matchManager.Cup.RollsLeft);
+                
+                if (bestHint.HasValue) _hintView.ShowHint(bestHint.Value);
+            }
+
+            Debug.Log($"<color=cyan>[DEBUG]</color> Cheat angewendet: {string.Join(", ", forcedValues)}");
+        }
+
+        private void ResetMatchHard()
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+            Debug.Log("<color=cyan>[DEBUG]</color> Board (Szene) wurde zurückgesetzt!");
+        }
+
+        private void ForceUpperBonus()
+        {
+            if (_matchManager == null || _matchManager.CurrentPlayer == null) return;
+
+            Player player = _matchManager.CurrentPlayer;
+            
+            player.ScoreCard.SetScore(ScoreCategory.Ones, 3);
+            player.ScoreCard.SetScore(ScoreCategory.Twos, 6);
+            player.ScoreCard.SetScore(ScoreCategory.Threes, 9);
+            player.ScoreCard.SetScore(ScoreCategory.Fours, 12);
+            player.ScoreCard.SetScore(ScoreCategory.Fives, 15);
+            player.ScoreCard.SetScore(ScoreCategory.Sixes, 18);
+
+            _scoreCardView.SetFinalScore(ScoreCategory.Ones, 3);
+            _scoreCardView.SetFinalScore(ScoreCategory.Twos, 6);
+            _scoreCardView.SetFinalScore(ScoreCategory.Threes, 9);
+            _scoreCardView.SetFinalScore(ScoreCategory.Fours, 12);
+            _scoreCardView.SetFinalScore(ScoreCategory.Fives, 15);
+            _scoreCardView.SetFinalScore(ScoreCategory.Sixes, 18);
+
+            _scoreCardView.UpdateTotals(
+                player.ScoreCard.UpperSectionRaw,
+                player.ScoreCard.UpperSectionBonus,
+                player.ScoreCard.GrandTotal,
+                player.ScoreCard.IsBonusClaimed
+            );
+
+            Debug.Log("<color=cyan>[DEBUG]</color> Bonus erzwungen! Oberer Bereich hat nun exakt 63 Punkte.");
+        }
+
+        private void Update()
+        {
+            if (UnityEngine.InputSystem.Keyboard.current != null && 
+                UnityEngine.InputSystem.Keyboard.current.f1Key.wasPressedThisFrame)
+            {
+                ApplyCheat(new int[] { 6, 6, 6, 6, 6 });
+            }
+        }
+#endif
 
         private IEnumerator InitializeUIRoutine()
         {
