@@ -43,12 +43,11 @@ namespace DiceGame.Controllers
         [SerializeField] private Animator _mainUIAnimator;
 
         [Header("Dice Cup Settings")]
-        [SerializeField] private DiceCupView _diceCupView; 
-        
+        [SerializeField] private DiceCupView _diceCupView;
         [Tooltip("Ein unsichtbares UI-Panel, das den Bereich vorgibt, in dem die Würfel liegen dürfen.")]
-        [SerializeField] private RectTransform _scatterArea; // NEU
+        [SerializeField] private RectTransform _scatterArea;
         [SerializeField] private float _diceSpacing = 140f; 
-        [SerializeField] private float _collectionRadius = 200f; 
+        [SerializeField] private float _collectionRadius = 200f;
         
         [Header("VFX & Feedback (JUICE)")]
         [SerializeField] private ParticleSystem _confettiParticles;
@@ -91,7 +90,6 @@ namespace DiceGame.Controllers
 
             _matchManager.StartGame();
             LocalizationService.Instance.OnLanguageChanged += HandleLanguageChanged;
-
             StartCoroutine(InitializeUIRoutine());
         }
 
@@ -145,6 +143,7 @@ namespace DiceGame.Controllers
 
             if (_skipBotButton != null) _skipBotButton.onClick.AddListener(HandleSkipBotClicked);
             if (_passDeviceView != null) _passDeviceView.OnReadyClicked += HandlePlayerReady;
+
             if (_gameOverView != null)
             {
                 _gameOverView.OnRestartClicked += HandleRestart;
@@ -231,6 +230,7 @@ namespace DiceGame.Controllers
             {
                 StartVisualTurn(player);
             }
+
             _previousPlayer = player;
         }
 
@@ -248,7 +248,7 @@ namespace DiceGame.Controllers
             
             ResetAllDiceVisuals();
             yield return new WaitForSeconds(0.3f); 
-            
+
             if (_matchManager != null) _matchManager.AdvanceToNextTurn();
             _isTransitioningTurn = false;
         }
@@ -293,49 +293,58 @@ namespace DiceGame.Controllers
             StartCoroutine(RollAnimationRoutine(cup));
         }
 
-        // NEU: Berechnet World Space Positionen basierend auf dem _scatterArea Panel
         private Vector3 GetValidScatterPosition(List<Vector3> usedPositions)
         {
             if (_scatterArea == null) return Vector3.zero;
-
-            Vector3 finalPos = Vector3.zero;
+            
+            Vector3 finalWorldPos = Vector3.zero;
             bool foundValidSpot = false;
             
-            // Holt die echten globalen Ecken des UI Panels!
-            Vector3[] corners = new Vector3[4];
-            _scatterArea.GetWorldCorners(corners);
-            
-            float padding = 50f; 
-            float minX = corners[0].x + padding;
-            float maxX = corners[2].x - padding;
-            float minY = corners[0].y + padding;
-            float maxY = corners[2].y - padding;
+            // Wir nehmen die echten lokalen Grenzen des RectTransforms. 
+            // xMin/xMax und yMin/yMax berücksichtigen automatisch die Größe und den Pivot des Panels!
+            float padding = 60f; // Etwas erhöhtes Padding, damit die Würfel sicher nicht über den Rand lappen
+            float minX = _scatterArea.rect.xMin + padding;
+            float maxX = _scatterArea.rect.xMax - padding;
+            float minY = _scatterArea.rect.yMin + padding;
+            float maxY = _scatterArea.rect.yMax - padding;
 
             for (int attempt = 0; attempt < 50; attempt++)
             {
+                // 1. Zufälligen Punkt im lokalen Raum (Canvas Units) des Panels generieren
                 float randX = UnityEngine.Random.Range(minX, maxX);
                 float randY = UnityEngine.Random.Range(minY, maxY);
-                finalPos = new Vector3(randX, randY, corners[0].z);
+                Vector3 randomLocalPos = new Vector3(randX, randY, 0f);
+
                 foundValidSpot = true;
                 
-                foreach (var usedPos in usedPositions)
+                // 2. Distanzprüfung ebenfalls im lokalen Raum durchführen 
+                // (Viel sicherer, falls der Canvas hoch- oder runterskaliert wird)
+                foreach (var usedWorldPos in usedPositions)
                 {
-                    if (Vector3.Distance(finalPos, usedPos) < _diceSpacing)
+                    Vector3 usedLocalPos = _scatterArea.InverseTransformPoint(usedWorldPos);
+                    if (Vector2.Distance(randomLocalPos, usedLocalPos) < _diceSpacing)
                     {
                         foundValidSpot = false;
                         break;
                     }
                 }
-                if (foundValidSpot) break;
+
+                if (foundValidSpot)
+                {
+                    // 3. Den gültigen lokalen Punkt sauber in eine echte Weltkoordinate umwandeln
+                    finalWorldPos = _scatterArea.TransformPoint(randomLocalPos);
+                    break;
+                }
             }
-            return finalPos;
+
+            return finalWorldPos;
         }
 
         private IEnumerator RollAnimationRoutine(DiceCup cup)
         {
             _isDiceRolling = true;
             UpdateMainActionUI(); 
-            
+
             _scoreCardView.ClearAllPotentials();
             _scoreCardView.ClearAllHighlights();
             if (_hintView != null) _hintView.HideHint();
@@ -351,6 +360,11 @@ namespace DiceGame.Controllers
 
             if (!allDiceHeld)
             {
+                // NEU: Wir warten hier, bis die UI Slide-Out Animation abgeschlossen ist,
+                // bevor wir die Würfel um 200 auf der Y-Achse verschieben.
+                // 0.4 Sekunden ist ein solider Durchschnittswert für Animator-Transitions.
+                yield return new WaitForSeconds(1.0f);
+
                 List<Coroutine> slideRoutines = new List<Coroutine>();
                 List<DieView> diceToCollect = new List<DieView>();
                 
@@ -395,7 +409,7 @@ namespace DiceGame.Controllers
                     
                     if (isHuman)
                     {
-                        _diceCupView.EnableInteraction(); 
+                        _diceCupView.EnableInteraction();
                         while (!shakeFinished) yield return null;
                     }
                     else
@@ -445,7 +459,6 @@ namespace DiceGame.Controllers
                 }
 
                 if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = true;
-
                 yield return new WaitForSeconds(2.0f); 
 
                 if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = false;
@@ -476,7 +489,7 @@ namespace DiceGame.Controllers
 
             if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = true;
             
-            UpdateMainActionUI(); 
+            UpdateMainActionUI();
         }
 
         private void HandleDieStateChanged(int index, bool isHeld)
@@ -491,7 +504,6 @@ namespace DiceGame.Controllers
             {
                 if (!isHeld)
                 {
-                    // Hole echte World Positions für die Distanzberechnung
                     List<Vector3> usedPositions = new List<Vector3>();
                     for (int i = 0; i < _dieViews.Count; i++)
                     {
@@ -505,7 +517,6 @@ namespace DiceGame.Controllers
                     float randomRot = UnityEngine.Random.Range(0f, 360f);
                     _dieViews[index].SetScatterTargetWorld(newPos, randomRot);
                 }
-
                 _dieViews[index].AnimateToState(isHeld);
             }
         }
@@ -532,7 +543,7 @@ namespace DiceGame.Controllers
                 if (_cameraShake != null) _cameraShake.Shake(0.5f, 0.2f);
             }
             
-            UpdateMainActionUI(); 
+            UpdateMainActionUI();
         }
 
         private void ResetAllDiceVisuals()
@@ -589,12 +600,14 @@ namespace DiceGame.Controllers
         private void RefreshUIForCurrentPlayer(Player player)
         {
             _scoreCardView.RefreshDisplay(player.ScoreCard);
+            
             if (_currentPlayerNameText != null)
             {
                 if (_matchManager.Players.Count == 1)
                 {
                     int currentHighScore = PlayerPrefs.GetInt("HighScore", 0);
                     int currentScore = player.ScoreCard.GrandTotal;
+
                     if (currentScore > currentHighScore && currentHighScore > 0)
                     {
                         _currentPlayerNameText.text = LocalizationService.Instance.GetText("new_record", currentScore);
@@ -618,6 +631,7 @@ namespace DiceGame.Controllers
         private void UpdateMultiplayerScoreTracker()
         {
             if (_multiplayerScoreTrackerText == null || _matchManager.Players.Count <= 1) return;
+
             _multiplayerScoreTrackerText.gameObject.SetActive(true);
             string trackerString = string.Join("   |   ", _matchManager.Players.Select(p => $"{p.Name}: {p.ScoreCard.GrandTotal}"));
             _multiplayerScoreTrackerText.text = trackerString;

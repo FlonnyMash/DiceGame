@@ -631,7 +631,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.Views.DiceCupView
   _cupImageRect: {fileID: 101942101}
   _shakeAreaBounds: {fileID: 1927199329}
-  _shakeIntensity: 2
+  _shakeIntensity: 10
 --- !u!225 &101942103
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -1088,8 +1088,8 @@ MonoBehaviour:
   _mainUIAnimator: {fileID: 1018359233}
   _diceCupView: {fileID: 101942102}
   _scatterArea: {fileID: 1927199329}
-  _diceSpacing: 10
-  _collectionRadius: 200
+  _diceSpacing: 150
+  _collectionRadius: 1
   _confettiParticles: {fileID: 2032525971}
   _cameraShake: {fileID: 330585548}
   _settingsPanel: {fileID: 11613746}
