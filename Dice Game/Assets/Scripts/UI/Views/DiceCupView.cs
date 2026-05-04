@@ -105,7 +105,7 @@ namespace DiceGame.UI.Views
         {
             float t = 0;
             Vector2 startPos = _cupImageRect.anchoredPosition;
-            Vector2 endPos = startPos + new Vector2(0, 800f); 
+            Vector2 endPos = startPos + new Vector2(-400, 0f); 
 
             HapticService.PlayShakeHaptic();
 

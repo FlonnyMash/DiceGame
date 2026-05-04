@@ -1080,6 +1080,7 @@ MonoBehaviour:
   _multiplayerScoreTrackerText: {fileID: 1901329803}
   _skipBotButton: {fileID: 1010260924}
   _hintView: {fileID: 1917204109}
+  _debugMenuView: {fileID: 1686736325}
   _mainActionButton: {fileID: 1084415712}
   _mainActionIcon: {fileID: 779655487}
   _rollSprite: {fileID: -2205863333093305225, guid: 7f080337138fccf41983b1dfefed52f6, type: 3}
@@ -12532,8 +12533,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -100, y: -20}
-  m_SizeDelta: {x: 2255, y: 600}
+  m_AnchoredPosition: {x: -130, y: -20}
+  m_SizeDelta: {x: 2200, y: 600}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1941305167
 GameObject:

@@ -24,7 +24,7 @@ namespace DiceGame.UI.Views
 
         private int _tapCount = 0;
         private float _lastTapTime = 0f;
-        private const float TAP_TIMEOUT = 0.5f; 
+        private const float TAP_TIMEOUT = 1.0f; 
 
         private void Awake()
         {
@@ -60,10 +60,16 @@ namespace DiceGame.UI.Views
             _lastTapTime = Time.time;
             _tapCount++;
 
+            Debug.Log($"Secret Tap Count: {_tapCount}");
+
             if (_tapCount >= 5)
             {
-                if (_debugPanel != null) _debugPanel.SetActive(true);
-                _tapCount = 0;
+                if (_debugPanel != null)
+                    _debugPanel.SetActive(true);
+
+                Debug.Log("Debug Panel geöffnet!");
+
+                _tapCount = 0; // 🔥 NUR HIER resetten!
             }
         }
     }

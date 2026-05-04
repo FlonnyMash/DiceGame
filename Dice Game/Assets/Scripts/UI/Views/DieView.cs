@@ -42,17 +42,7 @@ namespace DiceGame.UI.Views
         public Vector2 InitialPosition => _initialPosition;
         public Vector2 ScatteredPosition => _scatteredPosition;
 
-        #if DEVELOPMENT_BUILD || UNITY_EDITOR
 
-        /// <summary>
-        /// Nur für den Unity Editor oder Development Builds: Zwingt den Würfel auf einen bestimmten Wert, 
-        /// um seltene Kombinationen (wie Nicer Dicer) schnell zu testen.
-        /// </summary>
-        public void DebugForceValue(int value)
-        {
-            Value = value;
-        }
-#endif
 
         // NEU: Rechnet die aktuelle Scattered Position in World Space um (Trick!)
         public Vector3 ScatteredWorldPosition
