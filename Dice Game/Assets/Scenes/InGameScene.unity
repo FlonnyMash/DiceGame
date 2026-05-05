@@ -590,7 +590,6 @@ GameObject:
   - component: {fileID: 101942105}
   - component: {fileID: 101942104}
   - component: {fileID: 101942103}
-  - component: {fileID: 101942102}
   m_Layer: 5
   m_Name: DiceCupImage
   m_TagString: Untagged
@@ -617,21 +616,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &101942102
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 101942100}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 51da2150049eb8a49ac552ecc3b1444a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.Views.DiceCupView
-  _cupImageRect: {fileID: 101942101}
-  _shakeAreaBounds: {fileID: 1927199329}
-  _shakeIntensity: 10
 --- !u!225 &101942103
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -1087,10 +1071,10 @@ MonoBehaviour:
   _hideScorecardSprite: {fileID: -2205863333093305225, guid: 7f080337138fccf41983b1dfefed52f6, type: 3}
   _showScorecardSprite: {fileID: 5806247343882902020, guid: f14422fe0972f6742b86a49a59c03d34, type: 3}
   _mainUIAnimator: {fileID: 1018359233}
-  _diceCupView: {fileID: 101942102}
+  _diceCupView: {fileID: 1754897576}
   _scatterArea: {fileID: 1927199329}
   _diceSpacing: 150
-  _collectionRadius: 1
+  _collectionRadius: 2
   _confettiParticles: {fileID: 2032525971}
   _cameraShake: {fileID: 330585548}
   _settingsPanel: {fileID: 11613746}
@@ -11441,6 +11425,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1754897575}
+  - component: {fileID: 1754897577}
+  - component: {fileID: 1754897576}
   m_Layer: 5
   m_Name: DiceCupParent
   m_TagString: Untagged
@@ -11468,6 +11454,33 @@ RectTransform:
   m_AnchoredPosition: {x: -775, y: -733}
   m_SizeDelta: {x: 500, y: 500}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1754897576
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1754897574}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51da2150049eb8a49ac552ecc3b1444a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.UI.Views.DiceCupView
+  _cupImageRect: {fileID: 101942101}
+  _shakeAreaBounds: {fileID: 1927199329}
+  _shakeIntensity: 10
+--- !u!225 &1754897577
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1754897574}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1764078775
 GameObject:
   m_ObjectHideFlags: 0

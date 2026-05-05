@@ -31,7 +31,7 @@ namespace DiceGame.Controllers
         [SerializeField] private TextMeshProUGUI _multiplayerScoreTrackerText;
         [SerializeField] private Button _skipBotButton;
         [SerializeField] private HintView _hintView;
-        
+
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
         [Header("Debug & Cheats")]
         [SerializeField] private DebugMenuView _debugMenuView;
@@ -51,9 +51,9 @@ namespace DiceGame.Controllers
         [SerializeField] private DiceCupView _diceCupView;
         [Tooltip("Ein unsichtbares UI-Panel, das den Bereich vorgibt, in dem die Würfel liegen dürfen.")]
         [SerializeField] private RectTransform _scatterArea;
-        [SerializeField] private float _diceSpacing = 140f; 
+        [SerializeField] private float _diceSpacing = 140f;
         [SerializeField] private float _collectionRadius = 200f;
-        
+
         [Header("VFX & Feedback (JUICE)")]
         [SerializeField] private ParticleSystem _confettiParticles;
         [SerializeField] private CameraShake _cameraShake;
@@ -71,6 +71,7 @@ namespace DiceGame.Controllers
         private LocalPlayerInput _localInput;
         private Dictionary<Player, IPlayerInput> _playerInputs;
         private Player _previousPlayer;
+
         private bool _isTransitioningTurn = false;
         private bool _isDiceRolling = false;
         private bool _isScoreboardVisibleInternal = true;
@@ -91,7 +92,6 @@ namespace DiceGame.Controllers
             BindManagerEvents();
 
             _matchManager.StartGame();
-
             LocalizationService.Instance.OnLanguageChanged += HandleLanguageChanged;
             StartCoroutine(InitializeUIRoutine());
 
@@ -128,10 +128,10 @@ namespace DiceGame.Controllers
             if (_hintView != null)
             {
                 ScoreCategory? bestHint = HintCalculator.GetBestHint(
-                    _matchManager.CurrentPlayer.ScoreCard, 
-                    _matchManager.Cup.Dice, 
+                    _matchManager.CurrentPlayer.ScoreCard,
+                    _matchManager.Cup.Dice,
                     _matchManager.Cup.RollsLeft);
-                
+
                 if (bestHint.HasValue) _hintView.ShowHint(bestHint.Value);
             }
         }
@@ -144,8 +144,8 @@ namespace DiceGame.Controllers
         private void ForceUpperBonus()
         {
             if (_matchManager == null || _matchManager.CurrentPlayer == null) return;
-
             Player player = _matchManager.CurrentPlayer;
+
             player.ScoreCard.SetScore(ScoreCategory.Ones, 3);
             player.ScoreCard.SetScore(ScoreCategory.Twos, 6);
             player.ScoreCard.SetScore(ScoreCategory.Threes, 9);
@@ -170,7 +170,7 @@ namespace DiceGame.Controllers
 
         private void Update()
         {
-            if (UnityEngine.InputSystem.Keyboard.current != null && 
+            if (UnityEngine.InputSystem.Keyboard.current != null &&
                 UnityEngine.InputSystem.Keyboard.current.f1Key.wasPressedThisFrame)
             {
                 ApplyCheat(new int[] { 6, 6, 6, 6, 6 });
@@ -181,7 +181,7 @@ namespace DiceGame.Controllers
         private IEnumerator InitializeUIRoutine()
         {
             yield return new WaitForEndOfFrame();
-            SetScoreboardVisibility(true); 
+            SetScoreboardVisibility(true);
         }
 
         private void SetupCoreGame()
@@ -194,6 +194,7 @@ namespace DiceGame.Controllers
             }
 
             _matchManager = new MatchManager(players);
+
             _playerInputs = new Dictionary<Player, IPlayerInput>();
             _localInput = gameObject.AddComponent<LocalPlayerInput>();
 
@@ -210,7 +211,7 @@ namespace DiceGame.Controllers
             {
                 _mainActionButton.onClick.AddListener(HandleMainAction);
             }
-            
+
             _scoreCardView.Initialize();
             _scoreCardView.OnCategoryClicked += (cat) => _localInput.TriggerCategorySelected(cat);
             _scoreCardView.OnBonusClaimClicked += () => _localInput.TriggerBonusClaimed();
@@ -228,6 +229,7 @@ namespace DiceGame.Controllers
             }
 
             if (_skipBotButton != null) _skipBotButton.onClick.AddListener(HandleSkipBotClicked);
+
             if (_passDeviceView != null) _passDeviceView.OnReadyClicked += HandlePlayerReady;
             if (_gameOverView != null)
             {
@@ -239,22 +241,38 @@ namespace DiceGame.Controllers
         // ==========================================
         //  UI / TOGGLE LOGIK
         // ==========================================
-
         private void HandleMainAction()
         {
             if (_isDiceRolling || _mainUIAnimator == null || _isTransitioningTurn) return;
-            
+
             SetScoreboardVisibility(!_isScoreboardVisibleInternal);
         }
 
         private void SetScoreboardVisibility(bool isVisible)
         {
             _isScoreboardVisibleInternal = isVisible;
+
+            if (isVisible)
+            {
+                ResetAllDiceToTray();
+            }
+
             if (_mainUIAnimator != null)
             {
                 _mainUIAnimator.SetBool("IsVisible", _isScoreboardVisibleInternal);
             }
             UpdateMainActionUI();
+        }
+
+        private void ResetAllDiceToTray()
+        {
+            if (_dieViews == null) return;
+            foreach (var die in _dieViews)
+            {
+                // ResetToIdleSilent ist hier perfekt, da es ohne Verzögerung oder sichtbare Animation 
+                // die Transforms bereinigt, während das Scoreboard gerade eingeblendet wird.
+                die.ResetToIdleSilent();
+            }
         }
 
         private void UpdateMainActionUI()
@@ -263,31 +281,28 @@ namespace DiceGame.Controllers
 
             bool isHuman = !_matchManager.CurrentPlayer.IsBot;
 
-            // Button sperren wenn gerollt wird ODER der Zug gerade wechselt
             _mainActionButton.interactable = isHuman && !_isDiceRolling && !_isTransitioningTurn;
 
-            // TOGGLE ICONS:
             if (_isScoreboardVisibleInternal)
             {
-                _mainActionIcon.sprite = _hideScorecardSprite; 
+                _mainActionIcon.sprite = _hideScorecardSprite;
             }
             else
             {
-                _mainActionIcon.sprite = _showScorecardSprite; 
+                _mainActionIcon.sprite = _showScorecardSprite;
             }
         }
 
         // ==========================================
         //  WÜRFEL-LOGIK (CUP & ANIMATION)
         // ==========================================
-
         private void HandleCupDragToRoll()
         {
             if (_isDiceRolling || !_canStartRoll || _matchManager == null || _isTransitioningTurn) return;
             if (_matchManager.Cup.RollsLeft <= 0 || _matchManager.CurrentPlayer.IsBot) return;
 
             _canStartRoll = false;
-            _localInput.TriggerRoll(); 
+            _localInput.TriggerRoll();
         }
 
         private void HandleDiceRolled(DiceCup cup)
@@ -298,7 +313,7 @@ namespace DiceGame.Controllers
         private IEnumerator RollAnimationRoutine(DiceCup cup)
         {
             _isDiceRolling = true;
-            UpdateMainActionUI(); 
+            UpdateMainActionUI();
 
             _scoreCardView.ClearAllPotentials();
             _scoreCardView.ClearAllHighlights();
@@ -312,11 +327,9 @@ namespace DiceGame.Controllers
 
             if (!allDiceHeld)
             {
-                // KEIN DELAY MEHR HIER! Die Würfel gehen sofort nach oben.
-                
                 List<Coroutine> slideRoutines = new List<Coroutine>();
                 List<DieView> diceToCollect = new List<DieView>();
-                
+
                 for (int i = 0; i < cup.Dice.Count; i++)
                 {
                     if (!cup.Dice[i].IsHeld)
@@ -326,7 +339,7 @@ namespace DiceGame.Controllers
                         diceToCollect.Add(_dieViews[i]);
                     }
                 }
-                
+
                 foreach (var routine in slideRoutines) yield return routine;
                 yield return new WaitForSeconds(0.2f);
 
@@ -334,6 +347,7 @@ namespace DiceGame.Controllers
                 {
                     bool allCollected = false;
                     bool shakeFinished = false;
+
                     Action onDrag = () => {
                         for (int i = diceToCollect.Count - 1; i >= 0; i--) {
                             if (Vector3.Distance(_diceCupView.CupImageRect.position, diceToCollect[i].Rect.position) < _collectionRadius) {
@@ -345,10 +359,10 @@ namespace DiceGame.Controllers
                     };
 
                     Action onShakeComplete = () => { if (allCollected) shakeFinished = true; };
-                    
+
                     _diceCupView.OnCupDragged += onDrag;
                     _diceCupView.OnShakeCompleted += onShakeComplete;
-                    
+
                     if (isHuman) {
                         _diceCupView.EnableInteraction();
                         while (!shakeFinished) yield return null;
@@ -356,7 +370,7 @@ namespace DiceGame.Controllers
                         foreach (var d in diceToCollect) d.SetVisibility(false);
                         yield return _diceCupView.AutoShakeRoutine();
                     }
-                    
+
                     _diceCupView.OnCupDragged -= onDrag;
                     _diceCupView.OnShakeCompleted -= onShakeComplete;
                     _diceCupView.DisableInteraction();
@@ -364,12 +378,14 @@ namespace DiceGame.Controllers
             }
 
             List<Vector3> usedPositions = new List<Vector3>();
+
             for (int i = 0; i < cup.Dice.Count; i++)
             {
                 if (!cup.Dice[i].IsHeld)
                 {
-                    Vector3 finalPos = GetValidScatterPosition(usedPositions); 
+                    Vector3 finalPos = GetValidScatterPosition(usedPositions);
                     usedPositions.Add(finalPos);
+
                     float randomRot = UnityEngine.Random.Range(0f, 360f);
                     _dieViews[i].UpdateView(cup.Dice[i].Value, false);
                     _dieViews[i].ScatterWorld(finalPos, randomRot);
@@ -382,7 +398,7 @@ namespace DiceGame.Controllers
                 {
                     AudioManager.Instance.PlaySFX(_rollDiceSounds[UnityEngine.Random.Range(0, _rollDiceSounds.Length)]);
                 }
-                
+
                 if (_diceCupView != null) yield return _diceCupView.AnimateRevealRoutine();
 
                 for (int i = 0; i < cup.Dice.Count; i++)
@@ -390,25 +406,25 @@ namespace DiceGame.Controllers
                     if (!cup.Dice[i].IsHeld) _dieViews[i].SetVisibility(true);
                 }
 
-                yield return new WaitForSeconds(2.0f); 
+                yield return new WaitForSeconds(2.0f);
 
                 List<Coroutine> returnRoutines = new List<Coroutine>();
                 for (int i = 0; i < cup.Dice.Count; i++)
                 {
                     if (!cup.Dice[i].IsHeld) returnRoutines.Add(_dieViews[i].SlideBackToTray(0.6f));
                 }
-                yield return new WaitForSeconds(0.65f); 
+
+                yield return new WaitForSeconds(0.65f);
             }
 
-            // 3. ABSCHLUSS
-            _isDiceRolling = false; 
-            _canStartRoll = true; 
+            _isDiceRolling = false;
+            _canStartRoll = true;
 
             SetScoreboardVisibility(true);
-            
-            if (_diceCupView != null) 
+
+            if (_diceCupView != null)
             {
-                _diceCupView.ResetCup(); 
+                _diceCupView.ResetCup();
                 if (isHuman && cup.RollsLeft > 0)
                 {
                     _diceCupView.EnableInteraction();
@@ -424,14 +440,13 @@ namespace DiceGame.Controllers
             }
 
             if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = true;
-            
-            UpdateMainActionUI(); 
+
+            UpdateMainActionUI();
         }
 
         // ==========================================
         //  CORE EVENTS & HELPERS
         // ==========================================
-
         private void BindManagerEvents()
         {
             _matchManager.OnTurnStarted += HandleTurnStarted;
@@ -446,7 +461,7 @@ namespace DiceGame.Controllers
         private void HandleTurnStarted(Player player)
         {
             foreach (var input in _playerInputs.Values) input.SetActive(false);
-            
+
             var activeInput = _playerInputs[player];
             activeInput.SetActive(true);
             _matchManager.AttachInput(activeInput);
@@ -468,7 +483,6 @@ namespace DiceGame.Controllers
             {
                 StartVisualTurn(player);
             }
-
             _previousPlayer = player;
         }
 
@@ -480,11 +494,12 @@ namespace DiceGame.Controllers
             {
                 int currentValue = _matchManager.Cup.Dice[i].Value;
                 _dieViews[i].UpdateView(currentValue, false);
-                _dieViews[i].ResetToIdleSilent(); 
+                _dieViews[i].ResetToIdleSilent();
             }
 
             _scoreCardView.ClearAllPotentials();
             if (_hintView != null) _hintView.HideHint();
+
             UpdateMultiplayerScoreTracker();
             RefreshUIForCurrentPlayer(player);
 
@@ -492,27 +507,27 @@ namespace DiceGame.Controllers
             {
                 SetUIInteractable(false);
                 if (_diceCupView != null) _diceCupView.DisableInteraction();
+
                 var botInput = _playerInputs[player] as BotPlayerInput;
                 botInput?.StartBotTurn(_matchManager.Cup, player.ScoreCard);
             }
             else
             {
-                SetUIInteractable(true); 
+                SetUIInteractable(true);
                 if (_skipBotButton != null) _skipBotButton.gameObject.SetActive(false);
-
                 if (_diceCupView != null) _diceCupView.EnableInteraction();
-                _canStartRoll = true; 
+                _canStartRoll = true;
             }
         }
 
         private Vector3 GetValidScatterPosition(List<Vector3> usedPositions)
         {
             if (_scatterArea == null) return Vector3.zero;
-            
+
             Vector3 finalWorldPos = Vector3.zero;
             bool foundValidSpot = false;
-            
-            float padding = 60f; 
+
+            float padding = 60f;
             float minX = _scatterArea.rect.xMin + padding;
             float maxX = _scatterArea.rect.xMax - padding;
             float minY = _scatterArea.rect.yMin + padding;
@@ -523,8 +538,9 @@ namespace DiceGame.Controllers
                 float randX = UnityEngine.Random.Range(minX, maxX);
                 float randY = UnityEngine.Random.Range(minY, maxY);
                 Vector3 randomLocalPos = new Vector3(randX, randY, 0f);
+
                 foundValidSpot = true;
-                
+
                 foreach (var usedWorldPos in usedPositions)
                 {
                     Vector3 usedLocalPos = _scatterArea.InverseTransformPoint(usedWorldPos);
@@ -541,6 +557,7 @@ namespace DiceGame.Controllers
                     break;
                 }
             }
+
             return finalWorldPos;
         }
 
@@ -549,26 +566,9 @@ namespace DiceGame.Controllers
             int currentValue = _matchManager.Cup.Dice[index].Value;
             _dieViews[index].UpdateView(currentValue, isHeld);
             _dieViews[index].PlayToggleAnimation(isHeld);
+
+            // Prüfen, ob wir uns in einem gültigen Roll-State für den Scatter befinden
             
-            if (!_isScoreboardVisibleInternal)
-            {
-                if (!isHeld)
-                {
-                    List<Vector3> usedPositions = new List<Vector3>();
-                    for (int i = 0; i < _dieViews.Count; i++)
-                    {
-                        if (i != index && !_matchManager.Cup.Dice[i].IsHeld)
-                        {
-                            usedPositions.Add(_dieViews[i].ScatteredWorldPosition);
-                        }
-                    }
-                    
-                    Vector3 newPos = GetValidScatterPosition(usedPositions);
-                    float randomRot = UnityEngine.Random.Range(0f, 360f);
-                    _dieViews[index].SetScatterTargetWorld(newPos, randomRot);
-                }
-                _dieViews[index].AnimateToState(isHeld);
-            }
         }
 
         private void HandleScoreApplied(Player player, ScoreCategory category, int points)
@@ -581,10 +581,10 @@ namespace DiceGame.Controllers
             while (_isDiceRolling) yield return null;
 
             if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(_scoreCategorySound);
+
             _scoreCardView.SetFinalScore(category, points);
             _scoreCardView.ClearAllPotentials();
             _scoreCardView.UpdateTotals(player.ScoreCard.UpperSectionRaw, player.ScoreCard.UpperSectionBonus, player.ScoreCard.GrandTotal, player.ScoreCard.IsBonusClaimed);
-
             UpdateMultiplayerScoreTracker();
 
             if (category == ScoreCategory.NicerDicer && points > 0)
@@ -592,7 +592,7 @@ namespace DiceGame.Controllers
                 if (_confettiParticles != null) _confettiParticles.Play();
                 if (_cameraShake != null) _cameraShake.Shake(0.5f, 0.2f);
             }
-            
+
             UpdateMainActionUI();
         }
 
@@ -615,7 +615,7 @@ namespace DiceGame.Controllers
         {
             SetUIInteractable(false);
             if (_gameOverView == null) return;
-            
+
             if (rankings.Count == 1) _gameOverView.ShowSinglePlayer(rankings[0].ScoreCard.GrandTotal);
             else _gameOverView.ShowMultiPlayer(rankings);
         }
@@ -650,7 +650,7 @@ namespace DiceGame.Controllers
         private void RefreshUIForCurrentPlayer(Player player)
         {
             _scoreCardView.RefreshDisplay(player.ScoreCard);
-            
+
             if (_currentPlayerNameText != null)
             {
                 if (_matchManager.Players.Count == 1)
@@ -681,6 +681,7 @@ namespace DiceGame.Controllers
         private void UpdateMultiplayerScoreTracker()
         {
             if (_multiplayerScoreTrackerText == null || _matchManager.Players.Count <= 1) return;
+
             _multiplayerScoreTrackerText.gameObject.SetActive(true);
             string trackerString = string.Join("   |   ", _matchManager.Players.Select(p => $"{p.Name}: {p.ScoreCard.GrandTotal}"));
             _multiplayerScoreTrackerText.text = trackerString;
@@ -699,7 +700,6 @@ namespace DiceGame.Controllers
         // ==========================================
         //  SETTINGS & SCENE MANAGEMENT
         // ==========================================
-
         public void OpenSettings() 
         {
             if (_settingsPanel != null)
@@ -711,7 +711,7 @@ namespace DiceGame.Controllers
         private IEnumerator OpenSettingsCoroutine()
         {
             _settingsPanel.SetActive(true);
-            yield return null; 
+            yield return null;
             if (_settingsAnimator != null) _settingsAnimator.SetBool("IsVisible", true);
         }
 
@@ -739,7 +739,7 @@ namespace DiceGame.Controllers
             if (_mainActionButton != null) _mainActionButton.onClick.RemoveListener(HandleMainAction);
             LocalizationService.Instance.OnLanguageChanged -= HandleLanguageChanged;
             if (_matchManager != null) _matchManager.OnTurnEnded -= HandleTurnEnded;
-            
+
             if (_diceCupView != null) _diceCupView.OnCupTouched -= HandleCupDragToRoll;
         }
 
@@ -753,28 +753,25 @@ namespace DiceGame.Controllers
         // ==========================================
         //  TURN TRANSITIONS
         // ==========================================
-
         private void HandleTurnEnded(Player playerWhoJustFinished)
         {
             if (_isTransitioningTurn) return;
-            _isTransitioningTurn = true;
 
-            // UI kurz sperren (verhindert Bugs), aber der Cooldown ist jetzt viel kürzer!
+            _isTransitioningTurn = true;
             SetUIInteractable(false);
-            UpdateMainActionUI(); 
+            UpdateMainActionUI();
 
             StartCoroutine(TurnTransitionRoutine(playerWhoJustFinished));
         }
 
         private IEnumerator TurnTransitionRoutine(Player playerWhoJustFinished)
         {
-            // Max 1 Sekunde (0.8s) Pause für den Menschen, 1.5s für den Bot
             float delay = playerWhoJustFinished.IsBot ? 1.5f : 0.8f;
             yield return new WaitForSeconds(delay);
-            
+
             ResetAllDiceVisuals();
             yield return new WaitForSeconds(0.2f);
-            
+
             if (_matchManager != null) _matchManager.AdvanceToNextTurn();
             _isTransitioningTurn = false;
         }
