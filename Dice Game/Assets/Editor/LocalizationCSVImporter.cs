@@ -12,7 +12,7 @@ namespace DiceGame.EditorTools
         private string _delimiter = ";"; // Standard für deutsches Excel, auf "," ändern falls nötig
 
         // Erstellt den Menüpunkt oben in der Unity-Leiste
-        [MenuItem("Tools/Localization/Import CSV to JSON")]
+        [MenuItem("DiceGame/Tools/Localization/Import CSV to JSON")]
         public static void ShowWindow()
         {
             GetWindow<LocalizationCSVImporter>("CSV Importer");

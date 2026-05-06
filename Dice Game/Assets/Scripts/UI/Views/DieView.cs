@@ -13,9 +13,6 @@ namespace DiceGame.UI.Views
         [SerializeField] private GameObject _heldHighlight;
         [SerializeField] private GameObject _heldBoarder;
 
-        [Header("Dice Faces (1 to 6)")]
-        [SerializeField] private Sprite[] _diceFaces;
-
         [Header("Animation & Transform")]
         [SerializeField] private Animator _animator;
         [SerializeField] private float _moveSpeed = 0.25f;
@@ -25,26 +22,24 @@ namespace DiceGame.UI.Views
         private const string ANIM_TRIGGER_DESELECT = "OnDeselect";
 
         public event Action<int> OnDieClicked;
-
         private int _dieIndex;
         private bool _isHeld;
-
+        
         private Vector2 _initialPosition;
         private Quaternion _initialRotation;
-        private Vector3 _initialScale; 
+        private Vector3 _initialScale;
         
         private Vector2 _scatteredPosition;
         private Quaternion _scatteredRotation;
-
         private Coroutine _moveRoutine;
+
+        // NEU: Das dynamische Array für den aktuell ausgerüsteten Skin!
+        private Sprite[] _currentDiceFaces;
 
         public RectTransform Rect => GetComponent<RectTransform>();
         public Vector2 InitialPosition => _initialPosition;
         public Vector2 ScatteredPosition => _scatteredPosition;
 
-
-
-        // NEU: Rechnet die aktuelle Scattered Position in World Space um (Trick!)
         public Vector3 ScatteredWorldPosition
         {
             get
@@ -76,15 +71,29 @@ namespace DiceGame.UI.Views
             _scatteredRotation = _initialRotation;
         }
 
+        // NEU: Wird vom GameController aufgerufen, um den Skin zuzuweisen
+        public void SetSkin(Sprite[] newFaces)
+        {
+            if (newFaces != null && newFaces.Length == 6)
+            {
+                _currentDiceFaces = newFaces;
+            }
+            else
+            {
+                Debug.LogError($"[DieView] Ungültiger Würfel-Skin für {gameObject.name} zugewiesen!");
+            }
+        }
+
         public void UpdateView(int value, bool isHeld)
         {
             _isHeld = isHeld;
-
-            if (value >= 1 && value <= 6 && _diceFaces.Length == 6)
+            
+            // Greift nun auf das dynamische Array zu
+            if (value >= 1 && value <= 6 && _currentDiceFaces != null && _currentDiceFaces.Length == 6)
             {
-                _dieImage.sprite = _diceFaces[value - 1];
+                _dieImage.sprite = _currentDiceFaces[value - 1];
             }
-
+            
             if (_heldHighlight != null) _heldHighlight.SetActive(isHeld);
             if (_heldBoarder != null) _heldBoarder.SetActive(isHeld);
         }
@@ -96,13 +105,11 @@ namespace DiceGame.UI.Views
             if (_heldBoarder != null) _heldBoarder.SetActive(isVisible && _isHeld);
         }
 
-        // NEU: Akzeptiert jetzt eine World Position!
         public void SetScatterTargetWorld(Vector3 targetWorldPos, float randomZRotation)
         {
             RectTransform rect = GetComponent<RectTransform>();
             Vector2 oldPos = rect.anchoredPosition;
             
-            // Setze ihn kurz auf die Weltposition, speichere den lokalen Wert, und setze ihn zurück
             rect.position = targetWorldPos;
             _scatteredPosition = rect.anchoredPosition;
             rect.anchoredPosition = oldPos; 
@@ -110,13 +117,10 @@ namespace DiceGame.UI.Views
             _scatteredRotation = Quaternion.Euler(0, 0, randomZRotation);
         }
 
-        // NEU: Akzeptiert jetzt eine World Position!
         public void ScatterWorld(Vector3 targetWorldPos, float randomZRotation)
         {
             if (_isHeld) return;
-
             SetScatterTargetWorld(targetWorldPos, randomZRotation);
-
             RectTransform rect = GetComponent<RectTransform>();
             rect.anchoredPosition = _scatteredPosition;
             rect.localRotation = _scatteredRotation;
@@ -141,18 +145,16 @@ namespace DiceGame.UI.Views
             Quaternion startRot = rect.localRotation;
             Vector3 startScale = rect.localScale;
             float elapsed = 0f;
-
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
-                float t = Mathf.SmoothStep(0f, 1f, elapsed / duration); 
+                float t = Mathf.SmoothStep(0f, 1f, elapsed / duration);
                 
                 rect.anchoredPosition = Vector2.Lerp(startPos, targetPos, t);
                 rect.localRotation = Quaternion.Lerp(startRot, targetRot, t);
                 rect.localScale = Vector3.Lerp(startScale, targetScale, t);
                 yield return null;
             }
-
             rect.anchoredPosition = targetPos;
             rect.localRotation = targetRot;
             rect.localScale = targetScale;
@@ -172,7 +174,6 @@ namespace DiceGame.UI.Views
             Vector3 startScale = rect.localScale;
             Vector3 targetScale = _initialScale * _scatterScale; 
             float elapsed = 0f;
-
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
@@ -199,7 +200,6 @@ namespace DiceGame.UI.Views
             Quaternion startRot = rect.localRotation;
             Vector3 startScale = rect.localScale;
             float elapsed = 0f;
-
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
@@ -209,7 +209,6 @@ namespace DiceGame.UI.Views
                 rect.localScale = Vector3.Lerp(startScale, _initialScale, t); 
                 yield return null;
             }
-
             rect.anchoredPosition = _initialPosition;
             rect.localRotation = _initialRotation;
             rect.localScale = _initialScale;
@@ -220,7 +219,6 @@ namespace DiceGame.UI.Views
         public void PlayToggleAnimation(bool isNowHeld)
         {
             if (_animator == null) return;
-
             if (isNowHeld)
             {
                 _animator.ResetTrigger(ANIM_TRIGGER_DESELECT);
@@ -237,19 +235,15 @@ namespace DiceGame.UI.Views
         {
             _isHeld = false;
             SetVisibility(true); 
-
             if (_heldHighlight != null) _heldHighlight.SetActive(false);
             if (_heldBoarder != null) _heldBoarder.SetActive(false);
-
             if (_animator != null)
             {
                 _animator.Rebind();
                 _animator.Update(0f);
             }
-
             if (_moveRoutine != null) StopCoroutine(_moveRoutine);
             _moveRoutine = StartCoroutine(MoveRoutine(_initialPosition, _initialRotation, _initialScale, _moveSpeed));
-
             _scatteredPosition = _initialPosition;
             _scatteredRotation = _initialRotation;
         }
@@ -258,11 +252,10 @@ namespace DiceGame.UI.Views
         {
             _isHeld = false;
             SetVisibility(true); 
-
             if (_heldHighlight != null) _heldHighlight.SetActive(false);
             if (_heldBoarder != null) _heldBoarder.SetActive(false);
-
             if (_moveRoutine != null) StopCoroutine(_moveRoutine);
+            
             RectTransform rect = GetComponent<RectTransform>();
             rect.localScale = _initialScale;
             rect.anchoredPosition = _initialPosition;
@@ -270,7 +263,7 @@ namespace DiceGame.UI.Views
             
             _scatteredPosition = _initialPosition;
             _scatteredRotation = _initialRotation;
-
+            
             if (_animator != null)
             {
                 _animator.Rebind();

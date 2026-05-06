@@ -54,3 +54,16 @@ hint_smallstraight;Small Straight;Kleine Straße;Escalera menor;Petite suite;Sca
 hint_largestraight;Large Straight;Große Straße;Escalera mayor;Grande suite;Scala grande;Sequência maior
 hint_nicerdicer;Dice!;Dice!;Dice!;Dice!;Dice!;Dice!
 hint_chance;Chance;Chance;Suerte;Chance;Chance;Sorte
+shop_item_dice_gold;Golden Dice;Goldwürfel;;;;
+shop_desc_dice_gold;Leather Cup;Lederbecher;;;;
+shop_item_owned;Owned;Gekauft;;;;
+title_shop;SHOP;LADEN;;;;
+shop_item_dice_default;Default;Standard;;;;
+shop_desc_dice_default;Default Dice Skin;Standard Würfel;;;;
+shop_item_equip;Equip;Ausrüsten;;;;
+shop_item_equipped;Equipped;Ausgerüstet;;;;
+shop_item_free;FREE;KOSTENLOS;;;;
+shop_item_cup_leather;Leather Cup;Lederbecher;;;;
+shop_desc_cup_leather;Leather Cup;Lederbecher;;;;
+shop_item_dice_white;White Dice;Weißer Würfel;;;;
+shop_desc_dice_white;It's white;Ist halt weiß;;;;

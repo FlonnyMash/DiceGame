@@ -53,5 +53,18 @@
   "hint_smallstraight": "Small Straight",
   "hint_largestraight": "Large Straight",
   "hint_nicerdicer": "Dice!",
-  "hint_chance": "Chance"
+  "hint_chance": "Chance",
+  "shop_item_dice_gold": "Golden Dice",
+  "shop_desc_dice_gold": "Leather Cup",
+  "shop_item_owned": "Owned",
+  "title_shop": "SHOP",
+  "shop_item_dice_default": "Default",
+  "shop_desc_dice_default": "Default Dice Skin",
+  "shop_item_equip": "Equip",
+  "shop_item_equipped": "Equipped",
+  "shop_item_free": "FREE",
+  "shop_item_cup_leather": "Leather Cup",
+  "shop_desc_cup_leather": "Leather Cup",
+  "shop_item_dice_white": "White Dice",
+  "shop_desc_dice_white": "It's white"
 }

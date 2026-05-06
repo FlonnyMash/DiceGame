@@ -15,6 +15,7 @@ using DiceGame.Core.Inputs;
 using DiceGame.Core.Interfaces;
 using DiceGame.Services;
 using DiceGame.UI.Effects;
+using DiceGame.Configs; // NEU: Für DiceSkinConfig und CupSkinConfig
 
 namespace DiceGame.Controllers
 {
@@ -490,6 +491,9 @@ namespace DiceGame.Controllers
         {
             SetScoreboardVisibility(true);
 
+            // NEU: Skins laden, bevor der Zug visuell startet
+            LoadAndApplySkins();
+
             for (int i = 0; i < _dieViews.Count; i++)
             {
                 int currentValue = _matchManager.Cup.Dice[i].Value;
@@ -517,6 +521,34 @@ namespace DiceGame.Controllers
                 if (_skipBotButton != null) _skipBotButton.gameObject.SetActive(false);
                 if (_diceCupView != null) _diceCupView.EnableInteraction();
                 _canStartRoll = true;
+            }
+        }
+
+        // NEU: Diese Methode lädt die aktuell ausgewählten Skins aus dem Shop
+       private void LoadAndApplySkins()
+        {
+            // 1. Welche ID hat der Spieler ausgerüstet?
+            string equippedDiceId = PlayerPrefsEconomyService.Instance.EquippedDiceId;
+            
+            // 2. Lade die entsprechende Skin Config aus dem Resources-Ordner
+            // WICHTIG: Das Tool speichert die Configs unter Assets/Resources/ShopItems/ID/ID_ShopItem.asset
+            // Wir laden hier das ShopItemConfig Asset, um an die verknüpfte DiceSkinConfig zu kommen.
+            ShopItemConfig itemConfig = Resources.Load<ShopItemConfig>($"ShopItems/{equippedDiceId}/{equippedDiceId}_ShopItem");
+
+            // 3. Fallback auf Default, falls der Skin nicht gefunden wird
+            if (itemConfig == null || itemConfig.DiceSkin == null) 
+            {
+                itemConfig = Resources.Load<ShopItemConfig>("ShopItems/dice_default/dice_default_ShopItem");
+            }
+
+            // 4. Weise den Skin allen Würfel-Views in der Szene zu
+            if (itemConfig != null && itemConfig.DiceSkin != null)
+            {
+                foreach (var dieView in _dieViews)
+                {
+                    // Wir geben das Sprite-Array (Face 1-6) an die View weiter
+                    dieView.SetSkin(itemConfig.DiceSkin.Faces);
+                }
             }
         }
 
@@ -566,9 +598,6 @@ namespace DiceGame.Controllers
             int currentValue = _matchManager.Cup.Dice[index].Value;
             _dieViews[index].UpdateView(currentValue, isHeld);
             _dieViews[index].PlayToggleAnimation(isHeld);
-
-            // Prüfen, ob wir uns in einem gültigen Roll-State für den Scatter befinden
-            
         }
 
         private void HandleScoreApplied(Player player, ScoreCategory category, int points)
@@ -614,6 +643,18 @@ namespace DiceGame.Controllers
         private void HandleGameOver(List<Player> rankings)
         {
             SetUIInteractable(false);
+            
+            // NEU: Belohnung für den Spieler
+            // Wir prüfen, ob der lokale Spieler unter den Rankings ist (oder bei 1-Player-Matches einfach den ersten).
+            Player localPlayer = rankings.FirstOrDefault(p => !p.IsBot);
+            if (localPlayer != null)
+            {
+                // Eine einfache Formel: Total Score / 10 = Coins (z.B. 250 Punkte = 25 Coins)
+                // Du kannst das natürlich beliebig anpassen!
+                int rewardCoins = Mathf.Max(10, localPlayer.ScoreCard.GrandTotal / 10); 
+                PlayerPrefsEconomyService.Instance.PlayerWallet.AddCoins(rewardCoins);
+            }
+
             if (_gameOverView == null) return;
 
             if (rankings.Count == 1) _gameOverView.ShowSinglePlayer(rankings[0].ScoreCard.GrandTotal);

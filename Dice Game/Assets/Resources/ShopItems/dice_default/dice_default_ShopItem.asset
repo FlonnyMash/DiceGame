@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cb9f9900560e954c99cb9504fa311c2, type: 3}
+  m_Name: dice_default_ShopItem
+  m_EditorClassIdentifier: Assembly-CSharp::DiceGame.Configs.ShopItemConfig
+  Id: dice_default
+  Type: 0
+  Price: 0
+  IsDefaultItem: 1
+  NameLocKey: shop_item_dice_default
+  DescLocKey: shop_desc_dice_default
+  ShopIcon: {fileID: 21300000, guid: fd4fd6a6b9329aa49adfd3fa8a50d10a, type: 3}
+  DiceSkin: {fileID: 11400000, guid: 7f431cd15d821704b9f8db0f4a9befef, type: 2}
