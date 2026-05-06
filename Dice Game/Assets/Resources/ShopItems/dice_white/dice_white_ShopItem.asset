@@ -15,8 +15,8 @@ MonoBehaviour:
   Id: dice_white
   Type: 0
   Price: 0
-  IsDefaultItem: 0
+  IsDefaultItem: 1
   NameLocKey: shop_item_dice_white
   DescLocKey: shop_desc_dice_white
-  ShopIcon: {fileID: 0}
+  ShopIcon: {fileID: 21300000, guid: dd773539faaf50d479dd09c45fcb2d82, type: 3}
   DiceSkin: {fileID: 11400000, guid: 533ab8234b5e29842a680438f9ecd298, type: 2}

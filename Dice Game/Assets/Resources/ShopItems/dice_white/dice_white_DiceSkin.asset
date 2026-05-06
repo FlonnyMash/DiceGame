@@ -14,9 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DiceGame.Configs.DiceSkinConfig
   Id: dice_white
   Faces:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 21300000, guid: 5b7ca376ea39445428bfb5f44dccc7e3, type: 3}
+  - {fileID: 21300000, guid: 4a23c9d6181b2f74fa0b7e6ddcfb2588, type: 3}
+  - {fileID: 21300000, guid: 01c3b4ff77e4c114693fcd1fa26017c3, type: 3}
+  - {fileID: 21300000, guid: 147b48daea5998542b0226f3a5582b2b, type: 3}
+  - {fileID: 21300000, guid: 58325568766a48d47b40ad63d2e2d783, type: 3}
+  - {fileID: 21300000, guid: dd773539faaf50d479dd09c45fcb2d82, type: 3}
