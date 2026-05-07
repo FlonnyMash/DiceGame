@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using DiceGame.Core.Models;
 using DiceGame.Core.Rules;
 using DiceGame.Core.Interfaces;
@@ -26,6 +27,19 @@ namespace DiceGame.Core.Systems
         public event Action<List<Player>> OnGameOver;
 
         private IPlayerInput _currentPlayerInput;
+        private bool _isRollInProgress;
+        public bool IsRollInProgress => _isRollInProgress;
+        
+        // #region agent log
+        private static void AgentLog(string runId, string hypothesisId, string location, string message, string dataJson)
+        {
+            try
+            {
+                File.AppendAllText("debug-f7e117.log", $"{{\"sessionId\":\"f7e117\",\"runId\":\"{runId}\",\"hypothesisId\":\"{hypothesisId}\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"timestamp\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}}}\n");
+            }
+            catch { }
+        }
+        // #endregion
 
         public MatchManager(List<Player> players)
         {
@@ -41,6 +55,7 @@ namespace DiceGame.Core.Systems
 
         private void StartTurn()
         {
+            _isRollInProgress = false;
             Cup.ResetTurn();
             OnTurnStarted?.Invoke(CurrentPlayer);
         }
@@ -74,10 +89,33 @@ namespace DiceGame.Core.Systems
 
         private void HandleRollRequested()
         {
+            if (_isRollInProgress)
+            {
+                // #region agent log
+                AgentLog("post-fix", "H1", "MatchManager.HandleRollRequested", "roll ignored because animation still running", $"{{\"currentPlayer\":\"{CurrentPlayer.Name}\",\"rollsLeft\":{Cup.RollsLeft}}}");
+                // #endregion
+                return;
+            }
+
+            // #region agent log
+            AgentLog("pre-fix", "H1", "MatchManager.HandleRollRequested", "roll request received", $"{{\"currentPlayer\":\"{CurrentPlayer.Name}\",\"isBot\":{CurrentPlayer.IsBot.ToString().ToLower()},\"rollsLeftBefore\":{Cup.RollsLeft}}}");
+            // #endregion
             if (Cup.Roll())
             {
+                _isRollInProgress = true;
+                // #region agent log
+                AgentLog("pre-fix", "H1", "MatchManager.HandleRollRequested", "roll executed", $"{{\"rollsLeftAfter\":{Cup.RollsLeft}}}");
+                // #endregion
                 OnDiceRolled?.Invoke(Cup);
             }
+        }
+
+        public void NotifyRollAnimationCompleted()
+        {
+            _isRollInProgress = false;
+            // #region agent log
+            AgentLog("post-fix", "H1", "MatchManager.NotifyRollAnimationCompleted", "roll animation acknowledged complete", $"{{\"currentPlayer\":\"{CurrentPlayer.Name}\",\"rollsLeft\":{Cup.RollsLeft}}}");
+            // #endregion
         }
 
         private void HandleToggleHoldRequested(int dieIndex)
@@ -100,6 +138,9 @@ namespace DiceGame.Core.Systems
 
         private void HandleCategoryRequested(ScoreCategory category)
         {
+            // #region agent log
+            AgentLog("pre-fix", "H4", "MatchManager.HandleCategoryRequested", "category request received", $"{{\"category\":{(int)category},\"rollsLeft\":{Cup.RollsLeft}}}");
+            // #endregion
             if (Cup.RollsLeft == DiceCup.MaxRolls) return; // Ohne Wurf keine Punkte!
 
             int points = ScoreCalculator.CalculateScore(Cup.Dice, category);

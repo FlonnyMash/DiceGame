@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
@@ -15,7 +16,7 @@ using DiceGame.Core.Inputs;
 using DiceGame.Core.Interfaces;
 using DiceGame.Services;
 using DiceGame.UI.Effects;
-using DiceGame.Configs; // NEU: Für DiceSkinConfig und CupSkinConfig
+using DiceGame.Configs; 
 
 namespace DiceGame.Controllers
 {
@@ -77,6 +78,17 @@ namespace DiceGame.Controllers
         private bool _isDiceRolling = false;
         private bool _isScoreboardVisibleInternal = true;
         private bool _canStartRoll = true;
+        
+        // #region agent log
+        private static void AgentLog(string runId, string hypothesisId, string location, string message, string dataJson)
+        {
+            try
+            {
+                File.AppendAllText("debug-f7e117.log", $"{{\"sessionId\":\"f7e117\",\"runId\":\"{runId}\",\"hypothesisId\":\"{hypothesisId}\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"timestamp\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}}}\n");
+            }
+            catch { }
+        }
+        // #endregion
 
         private void Awake()
         {
@@ -328,6 +340,9 @@ namespace DiceGame.Controllers
         private IEnumerator RollAnimationRoutine(DiceCup cup)
         {
             _isDiceRolling = true;
+            // #region agent log
+            AgentLog("pre-fix", "H1", "GameController.RollAnimationRoutine", "roll animation started", $"{{\"playerIsBot\":{_matchManager.CurrentPlayer.IsBot.ToString().ToLower()},\"rollsLeftNow\":{cup.RollsLeft}}}");
+            // #endregion
             UpdateMainActionUI();
 
             _scoreCardView.ClearAllPotentials();
@@ -335,13 +350,34 @@ namespace DiceGame.Controllers
             if (_hintView != null) _hintView.HideHint();
             if (_diceCanvasGroup != null) _diceCanvasGroup.blocksRaycasts = false;
 
+            bool isHuman = !_matchManager.CurrentPlayer.IsBot;
+            if (!isHuman)
+            {
+                yield return PlayBotScoreboardRollRoutine(cup);
+                _isDiceRolling = false;
+                _canStartRoll = true;
+                _matchManager.NotifyRollAnimationCompleted();
+
+                SetScoreboardVisibility(true);
+                if (_diceCupView != null) _diceCupView.ResetCup();
+
+                UpdatePotentialScores(cup, _matchManager.CurrentPlayer);
+                UpdateMainActionUI();
+                yield break;
+            }
+
             SetScoreboardVisibility(false);
+            // #region agent log
+            AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "scoreboard hidden before dice lift", $"{{\"playerIsBot\":{_matchManager.CurrentPlayer.IsBot.ToString().ToLower()},\"animatorVisibleFlag\":{(_mainUIAnimator != null && _mainUIAnimator.GetBool("IsVisible")).ToString().ToLower()}}}");
+            // #endregion
 
             bool allDiceHeld = cup.Dice.All(die => die.IsHeld);
-            bool isHuman = !_matchManager.CurrentPlayer.IsBot;
 
             if (!allDiceHeld)
             {
+                // #region agent log
+                AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "dice lift to y+200 started", $"{{\"playerIsBot\":{(!isHuman).ToString().ToLower()},\"remainingRolls\":{cup.RollsLeft}}}");
+                // #endregion
                 List<Coroutine> slideRoutines = new List<Coroutine>();
                 List<DieView> diceToCollect = new List<DieView>();
 
@@ -356,6 +392,9 @@ namespace DiceGame.Controllers
                 }
 
                 foreach (var routine in slideRoutines) yield return routine;
+                // #region agent log
+                AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "dice lift to y+200 finished", $"{{\"playerIsBot\":{(!isHuman).ToString().ToLower()},\"diceToCollectCount\":{diceToCollect.Count}}}");
+                // #endregion
                 yield return new WaitForSeconds(0.2f);
 
                 if (_diceCupView != null)
@@ -382,8 +421,14 @@ namespace DiceGame.Controllers
                         _diceCupView.EnableInteraction();
                         while (!shakeFinished) yield return null;
                     } else {
+                        // #region agent log
+                        AgentLog("pre-fix-2", "H6", "GameController.RollAnimationRoutine", "bot starts collecting and shaking", $"{{\"diceToCollectBefore\":{diceToCollect.Count}}}");
+                        // #endregion
                         foreach (var d in diceToCollect) d.SetVisibility(false);
                         yield return _diceCupView.AutoShakeRoutine();
+                        // #region agent log
+                        AgentLog("pre-fix-2", "H6", "GameController.RollAnimationRoutine", "bot finished auto shake", $"{{\"diceToCollectAfter\":{diceToCollect.Count}}}");
+                        // #endregion
                     }
 
                     _diceCupView.OnCupDragged -= onDrag;
@@ -434,6 +479,10 @@ namespace DiceGame.Controllers
 
             _isDiceRolling = false;
             _canStartRoll = true;
+            // #region agent log
+            AgentLog("pre-fix", "H1", "GameController.RollAnimationRoutine", "roll animation finished", $"{{\"playerIsBot\":{_matchManager.CurrentPlayer.IsBot.ToString().ToLower()},\"rollsLeftNow\":{cup.RollsLeft}}}");
+            // #endregion
+            _matchManager.NotifyRollAnimationCompleted();
 
             SetScoreboardVisibility(true);
 
@@ -457,6 +506,51 @@ namespace DiceGame.Controllers
             if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = true;
 
             UpdateMainActionUI();
+        }
+
+        private IEnumerator PlayBotScoreboardRollRoutine(DiceCup cup)
+        {
+            // #region agent log
+            AgentLog("post-fix", "H8", "GameController.PlayBotScoreboardRollRoutine", "bot scoreboard roll animation started", $"{{\"rollsLeft\":{cup.RollsLeft}}}");
+            // #endregion
+            SetScoreboardVisibility(true);
+
+            for (int i = 0; i < cup.Dice.Count; i++)
+            {
+                if (!cup.Dice[i].IsHeld)
+                {
+                    _dieViews[i].SetVisibility(true);
+                    _dieViews[i].ResetToIdleSilent();
+                }
+            }
+
+            float elapsed = 0f;
+            const float duration = 0.5f;
+            const float frameStep = 0.05f;
+            while (elapsed < duration)
+            {
+                for (int i = 0; i < cup.Dice.Count; i++)
+                {
+                    if (!cup.Dice[i].IsHeld)
+                    {
+                        _dieViews[i].UpdateView(UnityEngine.Random.Range(1, 7), false);
+                    }
+                }
+                elapsed += frameStep;
+                yield return new WaitForSeconds(frameStep);
+            }
+
+            for (int i = 0; i < cup.Dice.Count; i++)
+            {
+                if (!cup.Dice[i].IsHeld)
+                {
+                    _dieViews[i].UpdateView(cup.Dice[i].Value, false);
+                }
+            }
+            yield return new WaitForSeconds(0.15f);
+            // #region agent log
+            AgentLog("post-fix", "H8", "GameController.PlayBotScoreboardRollRoutine", "bot scoreboard roll animation finished", $"{{\"rollsLeft\":{cup.RollsLeft}}}");
+            // #endregion
         }
 
         // ==========================================
@@ -505,7 +599,6 @@ namespace DiceGame.Controllers
         {
             SetScoreboardVisibility(true);
 
-            // NEU: Skins laden, bevor der Zug visuell startet
             LoadAndApplySkins();
 
             for (int i = 0; i < _dieViews.Count; i++)
@@ -525,9 +618,13 @@ namespace DiceGame.Controllers
             {
                 SetUIInteractable(false);
                 if (_diceCupView != null) _diceCupView.DisableInteraction();
+                if (_skipBotButton != null) _skipBotButton.gameObject.SetActive(true);
+                // #region agent log
+                AgentLog("pre-fix", "H2", "GameController.StartVisualTurn", "bot turn ui state", $"{{\"skipButtonSetActive\":{(_skipBotButton != null).ToString().ToLower()},\"skipButtonActuallyActive\":{(_skipBotButton != null && _skipBotButton.gameObject.activeSelf).ToString().ToLower()}}}");
+                // #endregion
 
                 var botInput = _playerInputs[player] as BotPlayerInput;
-                botInput?.StartBotTurn(_matchManager.Cup, player.ScoreCard);
+                botInput?.StartBotTurn(_matchManager.Cup, player.ScoreCard, _matchManager);
             }
             else
             {
@@ -538,29 +635,21 @@ namespace DiceGame.Controllers
             }
         }
 
-        // NEU: Diese Methode lädt die aktuell ausgewählten Skins aus dem Shop
        private void LoadAndApplySkins()
         {
-            // 1. Welche ID hat der Spieler ausgerüstet?
             string equippedDiceId = PlayerPrefsEconomyService.Instance.EquippedDiceId;
             
-            // 2. Lade die entsprechende Skin Config aus dem Resources-Ordner
-            // WICHTIG: Das Tool speichert die Configs unter Assets/Resources/ShopItems/ID/ID_ShopItem.asset
-            // Wir laden hier das ShopItemConfig Asset, um an die verknüpfte DiceSkinConfig zu kommen.
             ShopItemConfig itemConfig = Resources.Load<ShopItemConfig>($"ShopItems/{equippedDiceId}/{equippedDiceId}_ShopItem");
 
-            // 3. Fallback auf Default, falls der Skin nicht gefunden wird
             if (itemConfig == null || itemConfig.DiceSkin == null) 
             {
                 itemConfig = Resources.Load<ShopItemConfig>("ShopItems/dice_default/dice_default_ShopItem");
             }
 
-            // 4. Weise den Skin allen Würfel-Views in der Szene zu
             if (itemConfig != null && itemConfig.DiceSkin != null)
             {
                 foreach (var dieView in _dieViews)
                 {
-                    // Wir geben das Sprite-Array (Face 1-6) an die View weiter
                     dieView.SetSkin(itemConfig.DiceSkin.Faces);
                 }
             }
@@ -658,13 +747,9 @@ namespace DiceGame.Controllers
         {
             SetUIInteractable(false);
             
-            // NEU: Belohnung für den Spieler
-            // Wir prüfen, ob der lokale Spieler unter den Rankings ist (oder bei 1-Player-Matches einfach den ersten).
             Player localPlayer = rankings.FirstOrDefault(p => !p.IsBot);
             if (localPlayer != null)
             {
-                // Eine einfache Formel: Total Score / 10 = Coins (z.B. 250 Punkte = 25 Coins)
-                // Du kannst das natürlich beliebig anpassen!
                 int rewardCoins = Mathf.Max(10, localPlayer.ScoreCard.GrandTotal / 10); 
                 PlayerPrefsEconomyService.Instance.PlayerWallet.AddCoins(rewardCoins);
             }
@@ -679,6 +764,9 @@ namespace DiceGame.Controllers
         {
             if (_matchManager.CurrentPlayer.IsBot)
             {
+                // #region agent log
+                AgentLog("pre-fix", "H3", "GameController.HandleSkipBotClicked", "skip button clicked during bot turn", $"{{\"isDiceRolling\":{_isDiceRolling.ToString().ToLower()},\"rollsLeft\":{_matchManager.Cup.RollsLeft}}}");
+                // #endregion
                 var botInput = _playerInputs[_matchManager.CurrentPlayer] as BotPlayerInput;
                 botInput?.SkipBotTurn(_matchManager.Cup, _matchManager.CurrentPlayer.ScoreCard);
             }
@@ -705,6 +793,7 @@ namespace DiceGame.Controllers
         private void RefreshUIForCurrentPlayer(Player player)
         {
             _scoreCardView.RefreshDisplay(player.ScoreCard);
+            _scoreCardView.ClearAllHighlights();
 
             if (_currentPlayerNameText != null)
             {
@@ -715,11 +804,13 @@ namespace DiceGame.Controllers
 
                     if (currentScore > currentHighScore && currentHighScore > 0)
                     {
+                        // Zur Erinnerung: Stelle sicher, dass "new_record" in deinem Lokalisierungs-CSV gepflegt ist!
                         _currentPlayerNameText.text = LocalizationService.Instance.GetText("new_record", currentScore);
                         _currentPlayerNameText.color = Color.green;
                     }
                     else
                     {
+                        // Zur Erinnerung: Stelle sicher, dass "high_score" in deinem Lokalisierungs-CSV gepflegt ist!
                         int displayScore = Mathf.Max(currentHighScore, currentScore);
                         _currentPlayerNameText.text = LocalizationService.Instance.GetText("high_score", displayScore);
                         _currentPlayerNameText.color = Color.yellow;
@@ -727,6 +818,7 @@ namespace DiceGame.Controllers
                 }
                 else
                 {
+                    // Zur Erinnerung: Stelle sicher, dass "turn_indicator" in deinem Lokalisierungs-CSV gepflegt ist!
                     _currentPlayerNameText.text = LocalizationService.Instance.GetText("turn_indicator", player.Name);
                     _currentPlayerNameText.color = player.IsBot ? Color.red : Color.white;
                 }
@@ -830,5 +922,6 @@ namespace DiceGame.Controllers
             if (_matchManager != null) _matchManager.AdvanceToNextTurn();
             _isTransitioningTurn = false;
         }
+
     }
 }

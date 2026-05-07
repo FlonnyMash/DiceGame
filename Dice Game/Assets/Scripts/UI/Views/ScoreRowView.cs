@@ -20,8 +20,9 @@ namespace DiceGame.UI.Views
         [SerializeField] private Canvas _rowCanvas; 
         [SerializeField] private GraphicRaycaster _raycaster; 
 
-        // Wir nutzen Hashes für bessere Performance und Sicherheit
+        // Wieder exakt auf deine Schreibweise angepasst!
         private static readonly int SelectedTriggerHash = Animator.StringToHash("OnSelected");
+        private static readonly int OffSelectTriggerHash = Animator.StringToHash("OffSelect"); 
         private static readonly int HighlightedBoolHash = Animator.StringToHash("IsHighlighted");
 
         [Header("Colors")]
@@ -30,8 +31,6 @@ namespace DiceGame.UI.Views
 
         public ScoreCategory Category { get; private set; }
         public event Action<ScoreCategory> OnRowClicked;
-
-        private bool _currentHighlightState = false;
 
         private void Awake() 
         {
@@ -52,16 +51,15 @@ namespace DiceGame.UI.Views
             _selectButton.onClick.RemoveAllListeners();
             _selectButton.onClick.AddListener(() => 
             {
-                // 1. SOFORTIGES VISUELLES FEEDBACK
-                // Wir schalten das Highlight hart ab, in der Sekunde, in der geklickt wird.
                 SetHighlight(false);
                 
-                if (_animator != null) _animator.SetTrigger(SelectedTriggerHash);
+                if (_animator != null)
+                {
+                    _animator.ResetTrigger(OffSelectTriggerHash);
+                    _animator.SetTrigger(SelectedTriggerHash);
+                }
                 
-                // 2. Button sperren, um Doppelklicks zu verhindern
                 _selectButton.interactable = false;
-
-                // 3. Logik informieren
                 OnRowClicked?.Invoke(Category);
             });
             Clear();
@@ -72,7 +70,6 @@ namespace DiceGame.UI.Views
             _scoreText.text = potentialScore.ToString();
             _scoreText.color = _potentialColor;
             _selectButton.interactable = true; 
-
             SetHighlight(potentialScore > 0);
         }
 
@@ -81,9 +78,15 @@ namespace DiceGame.UI.Views
             _scoreText.text = score.ToString();
             _scoreText.color = _filledColor;
             
-            // Zur Sicherheit auch hier deaktivieren, falls es nicht geklickt, sondern vom Bot/System gesetzt wurde
             _selectButton.interactable = false; 
             SetHighlight(false);
+
+            if (_animator != null)
+            {
+                // Verhindert, dass alte Trigger in der Queue hängen bleiben
+                _animator.ResetTrigger(OffSelectTriggerHash);
+                _animator.SetTrigger(SelectedTriggerHash);
+            }
         }
 
         public void Clear()
@@ -92,13 +95,17 @@ namespace DiceGame.UI.Views
             _scoreText.color = _potentialColor;
             _selectButton.interactable = false;
             SetHighlight(false);
+
+            if (_animator != null)
+            {
+                // Löscht OnSelected und erzwingt das Zurücksetzen ins Idle
+                _animator.ResetTrigger(SelectedTriggerHash);
+                _animator.SetTrigger(OffSelectTriggerHash);
+            }
         }
 
         public void SetHighlight(bool active)
         {
-            if (_currentHighlightState == active) return;
-            _currentHighlightState = active;
-
             if (_animator != null)
                 _animator.SetBool(HighlightedBoolHash, active);
 
@@ -109,7 +116,9 @@ namespace DiceGame.UI.Views
             }
 
             if (_raycaster != null)
+            {
                 _raycaster.enabled = active;
+            }
         }
 
         public void UpdateCategoryName(string localizedName)
