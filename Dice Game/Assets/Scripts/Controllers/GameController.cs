@@ -257,12 +257,26 @@ namespace DiceGame.Controllers
             {
                 ResetAllDiceToTray();
             }
+            else
+            {
+                RestoreAllDiceFromTray();
+            }
 
             if (_mainUIAnimator != null)
             {
                 _mainUIAnimator.SetBool("IsVisible", _isScoreboardVisibleInternal);
             }
             UpdateMainActionUI();
+        }
+
+        private void RestoreAllDiceFromTray()
+        {
+            if (_dieViews == null || _matchManager?.Cup == null) return;
+            for (int i = 0; i < _dieViews.Count; i++)
+            {
+                var dieData = _matchManager.Cup.Dice[i];
+                _dieViews[i].PlayToggleAnimation(dieData.IsHeld);
+            }
         }
 
         private void ResetAllDiceToTray()

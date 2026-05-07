@@ -250,10 +250,7 @@ namespace DiceGame.UI.Views
 
         public void ResetToIdleSilent()
         {
-            _isHeld = false;
             SetVisibility(true); 
-            if (_heldHighlight != null) _heldHighlight.SetActive(false);
-            if (_heldBoarder != null) _heldBoarder.SetActive(false);
             if (_moveRoutine != null) StopCoroutine(_moveRoutine);
             
             RectTransform rect = GetComponent<RectTransform>();
@@ -261,8 +258,8 @@ namespace DiceGame.UI.Views
             rect.anchoredPosition = _initialPosition;
             rect.localRotation = _initialRotation;
             
-            _scatteredPosition = _initialPosition;
-            _scatteredRotation = _initialRotation;
+            // _scatteredPosition wird hier nicht mehr zurückgesetzt, 
+            // damit sie beim Schließen des Scoreboards wiederhergestellt werden kann.
             
             if (_animator != null)
             {
