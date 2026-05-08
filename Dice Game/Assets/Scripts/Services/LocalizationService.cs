@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using DiceGame.Services.Interfaces;
 using Newtonsoft.Json;
@@ -51,26 +50,33 @@ namespace DiceGame.Services
         private void LoadLanguage(SupportedLanguage language)
         {
             string langCode = GetLangCode(language);
-            
-            string filePath = Path.Combine(Application.streamingAssetsPath, "Localization", $"{langCode}.json");
 
-            if (File.Exists(filePath))
+            // Resources.Load works synchronously on ALL platforms (incl. Android/iOS/WebGL).
+            // StreamingAssets + System.IO.File would silently fail on Android, where the
+            // files live inside the compressed APK/AAB and are not accessible via File API.
+            TextAsset jsonAsset = Resources.Load<TextAsset>($"Localization/{langCode}");
+
+            if (jsonAsset != null)
             {
-                try 
+                try
                 {
-                    string json = File.ReadAllText(filePath);
-                    _translations = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
-                    Debug.Log($"[Localization] Successfully loaded: {langCode}");
+                    _translations = JsonConvert.DeserializeObject<Dictionary<string, string>>(jsonAsset.text)
+                                    ?? new Dictionary<string, string>();
+                    Debug.Log($"[Localization] Successfully loaded: {langCode} ({_translations.Count} entries)");
                 }
-                catch (Exception e) 
+                catch (Exception e)
                 {
-                    Debug.LogError($"[Localization] Error parsing JSON: {e.Message}");
+                    Debug.LogError($"[Localization] Error parsing JSON for '{langCode}': {e.Message}");
                     _translations = new Dictionary<string, string>();
+                }
+                finally
+                {
+                    Resources.UnloadAsset(jsonAsset);
                 }
             }
             else
             {
-                Debug.LogError($"[Localization] File not found: {filePath}");
+                Debug.LogError($"[Localization] Resources/Localization/{langCode}.json not found.");
                 _translations = new Dictionary<string, string>();
             }
         }

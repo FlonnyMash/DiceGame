@@ -88,8 +88,10 @@ namespace DiceGame.EditorTools
                 }
             }
 
-            // Sicherstellen, dass der Zielordner existiert
-            string folderPath = Path.Combine(Application.streamingAssetsPath, "Localization");
+            // Zielordner: Resources/Localization, damit die JSONs auf allen Plattformen
+            // (insbesondere Android, wo StreamingAssets im APK liegt und nicht per File-API
+            // gelesen werden kann) synchron via Resources.Load geladen werden können.
+            string folderPath = Path.Combine(Application.dataPath, "Resources", "Localization");
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
@@ -111,7 +113,7 @@ namespace DiceGame.EditorTools
 
             // Unity anweisen, die neuen Dateien sofort im Project-Fenster anzuzeigen
             AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog("Erfolg", "JSON Dateien wurden erfolgreich in StreamingAssets generiert!", "OK");
+            EditorUtility.DisplayDialog("Erfolg", "JSON Dateien wurden erfolgreich in Assets/Resources/Localization generiert!", "OK");
         }
     }
 }
