@@ -66,5 +66,15 @@
   "shop_item_cup_leather": "Leather Cup",
   "shop_desc_cup_leather": "Leather Cup",
   "shop_item_dice_white": "White Dice",
-  "shop_desc_dice_white": "It's white"
+  "shop_desc_dice_white": "It's white",
+  "msg_connecting": "Connecting...",
+  "msg_waiting_for_opponent": "Waiting for opponent...",
+  "msg_connected": "Connected",
+  "msg_remote_turn": "Remote player's turn",
+  "err_connection_failed": "Connection failed",
+  "err_connection_lost": "Connection lost",
+  "btn_online_play": "Online Play",
+  "btn_private_lobby": "Private Lobby",
+  "title_code": "Code:",
+  "title_online": "Online"
 }

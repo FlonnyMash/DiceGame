@@ -57,7 +57,7 @@
   "shop_item_dice_gold": "Goldwürfel",
   "shop_desc_dice_gold": "Lederbecher",
   "shop_item_owned": "Gekauft",
-  "title_shop": "LADEN",
+  "title_shop": "SHOP",
   "shop_item_dice_default": "Standard",
   "shop_desc_dice_default": "Standard Würfel",
   "shop_item_equip": "Ausrüsten",
@@ -66,5 +66,15 @@
   "shop_item_cup_leather": "Lederbecher",
   "shop_desc_cup_leather": "Lederbecher",
   "shop_item_dice_white": "Weißer Würfel",
-  "shop_desc_dice_white": "Ist halt weiß"
+  "shop_desc_dice_white": "Ist halt weiß",
+  "msg_connecting": "Verbinde...",
+  "msg_waiting_for_opponent": "Warte auf Gegner...",
+  "msg_connected": "Verbunden",
+  "msg_remote_turn": "Gegner ist am Zug",
+  "err_connection_failed": "Verbindung fehlgeschlagen",
+  "err_connection_lost": "Verbindung verloren",
+  "btn_online_play": "Online spielen",
+  "btn_private_lobby": "Private Lobby",
+  "title_code": "Code:",
+  "title_online": "Online"
 }

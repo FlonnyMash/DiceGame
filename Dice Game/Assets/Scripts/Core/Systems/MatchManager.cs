@@ -41,10 +41,10 @@ namespace DiceGame.Core.Systems
         }
         // #endregion
 
-        public MatchManager(List<Player> players)
+        public MatchManager(List<Player> players, int diceSeed = 0)
         {
             Players = players;
-            Cup = new DiceCup();
+            Cup = new DiceCup(diceSeed);
         }
 
         public void StartGame()

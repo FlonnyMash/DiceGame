@@ -57,7 +57,7 @@ hint_chance;Chance;Chance;Suerte;Chance;Chance;Sorte
 shop_item_dice_gold;Golden Dice;Goldwürfel;;;;
 shop_desc_dice_gold;Leather Cup;Lederbecher;;;;
 shop_item_owned;Owned;Gekauft;;;;
-title_shop;SHOP;LADEN;;;;
+title_shop;SHOP;SHOP;SHOP;SHOP;SHOP;SHOP
 shop_item_dice_default;Default;Standard;;;;
 shop_desc_dice_default;Default Dice Skin;Standard Würfel;;;;
 shop_item_equip;Equip;Ausrüsten;;;;
@@ -67,3 +67,13 @@ shop_item_cup_leather;Leather Cup;Lederbecher;;;;
 shop_desc_cup_leather;Leather Cup;Lederbecher;;;;
 shop_item_dice_white;White Dice;Weißer Würfel;;;;
 shop_desc_dice_white;It's white;Ist halt weiß;;;;
+msg_connecting;Connecting...;Verbinde...;Conectando...;Connexion...;Connessione...;Conectando...
+msg_waiting_for_opponent;Waiting for opponent...;Warte auf Gegner...;Esperando al oponente...;En attente d'un adversaire...;In attesa dell'avversario...;Aguardando o oponente...
+msg_connected;Connected;Verbunden;Conectado;Connecté;Connesso;Conectado
+msg_remote_turn;Remote player's turn;Gegner ist am Zug;Turno del rival remoto;Tour du joueur distant;Turno del giocatore remoto;Turno do jogador remoto
+err_connection_failed;Connection failed;Verbindung fehlgeschlagen;Conexión fallida;Échec de la connexion;Connessione non riuscita;Falha na conexão
+err_connection_lost;Connection lost;Verbindung verloren;Conexión perdida;Connexion perdue;Connessione persa;Conexão perdida
+btn_online_play;Online Play;Online spielen;Juego en línea;Jouer en ligne;Gioca online;Jogar online
+btn_private_lobby;Private Lobby;Private Lobby;Sala privada;Salon privé;Lobby privata;Lobby privada
+title_code;Code:;Code:;Código:;Code:;Codice:;Código:
+title_online;Online;Online;Online;Online;Online;Online

@@ -57,7 +57,7 @@
   "shop_item_dice_gold": "",
   "shop_desc_dice_gold": "",
   "shop_item_owned": "",
-  "title_shop": "",
+  "title_shop": "SHOP",
   "shop_item_dice_default": "",
   "shop_desc_dice_default": "",
   "shop_item_equip": "",
@@ -66,5 +66,15 @@
   "shop_item_cup_leather": "",
   "shop_desc_cup_leather": "",
   "shop_item_dice_white": "",
-  "shop_desc_dice_white": ""
+  "shop_desc_dice_white": "",
+  "msg_connecting": "Conectando...",
+  "msg_waiting_for_opponent": "Esperando al oponente...",
+  "msg_connected": "Conectado",
+  "msg_remote_turn": "Turno del rival remoto",
+  "err_connection_failed": "Conexión fallida",
+  "err_connection_lost": "Conexión perdida",
+  "btn_online_play": "Juego en línea",
+  "btn_private_lobby": "Sala privada",
+  "title_code": "Código:",
+  "title_online": "Online"
 }

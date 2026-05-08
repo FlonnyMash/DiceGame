@@ -14,9 +14,13 @@ using DiceGame.Audio;
 using DiceGame.Core.Systems;
 using DiceGame.Core.Inputs;
 using DiceGame.Core.Interfaces;
+using DiceGame.Core.Networking;
 using DiceGame.Services;
 using DiceGame.UI.Effects;
-using DiceGame.Configs; 
+using DiceGame.Configs;
+using DiceGame.Infrastructure.Networking;
+using DiceGame.Infrastructure.Networking.Ugs;
+using DiceGame.Networking;
 
 namespace DiceGame.Controllers
 {
@@ -69,10 +73,30 @@ namespace DiceGame.Controllers
         [SerializeField] private AudioClip _scoreCategorySound;
         [SerializeField] private AudioClip _bonusClaimSound;
 
+        [Header("Online Multiplayer (Phase 1)")]
+        [Tooltip("One-way simulated latency in ms used by the LocalLoopbackTransport for editor testing.")]
+        [SerializeField] private float _onlineSimulatedLatencyMs = 50f;
+
+        [Header("Online Multiplayer (Phase 2B)")]
+        [Tooltip("Optional overlay that displays the host's Relay join code while waiting for peers.")]
+        [SerializeField] private RelayJoinCodeView _relayJoinCodeView;
+
         private MatchManager _matchManager;
         private LocalPlayerInput _localInput;
         private Dictionary<Player, IPlayerInput> _playerInputs;
         private Player _previousPlayer;
+
+        // Online multiplayer (only populated when MatchData.IsOnline is true).
+        private NetworkSessionDirector _sessionDirector;
+        private INetworkService _onlineTransport;
+        private List<Player> _pendingPlayers;
+
+        // Public hooks for scene-side test scaffolding (e.g. FakeRemotePeer). The runtime-only
+        // MatchManager and INetworkService cannot be wired through the Inspector, so we expose
+        // them via getters + a one-shot ready event fired right after the seed handshake.
+        public MatchManager MatchManager => _matchManager;
+        public INetworkService NetworkService => _onlineTransport;
+        public event Action<MatchManager, INetworkService> OnOnlineMatchReady;
 
         private bool _isTransitioningTurn = false;
         private bool _isDiceRolling = false;
@@ -100,11 +124,18 @@ namespace DiceGame.Controllers
             if (_passDeviceView != null) _passDeviceView.Hide();
             if (_gameOverView != null) _gameOverView.Hide();
 
-            SetupCoreGame();
-            BindUIEvents();
-            BindManagerEvents();
+            if (MatchData.IsOnline)
+            {
+                SetupOnlineSession();
+            }
+            else
+            {
+                SetupCoreGame();
+                BindUIEvents();
+                BindManagerEvents();
+                _matchManager.StartGame();
+            }
 
-            _matchManager.StartGame();
             LocalizationService.Instance.OnLanguageChanged += HandleLanguageChanged;
             StartCoroutine(InitializeUIRoutine());
 
@@ -200,10 +231,11 @@ namespace DiceGame.Controllers
         private void SetupCoreGame()
         {
             List<Player> players = new List<Player>();
-            foreach (var name in MatchData.PlayerNames)
+            for (int i = 0; i < MatchData.PlayerNames.Count; i++)
             {
+                string name = MatchData.PlayerNames[i];
                 bool isBot = name.Contains("Bot");
-                players.Add(new Player(name, isBot));
+                players.Add(new Player(i, name, isBot, isRemote: false));
             }
 
             _matchManager = new MatchManager(players);
@@ -216,6 +248,100 @@ namespace DiceGame.Controllers
                 if (p.IsBot) _playerInputs.Add(p, gameObject.AddComponent<BotPlayerInput>());
                 else _playerInputs.Add(p, _localInput);
             }
+        }
+
+        // Online flow: build players + inputs synchronously, spin up the transport + director,
+        // then defer MatchManager creation until the seed handshake completes (HandleSeedReceived).
+        private void SetupOnlineSession()
+        {
+            _pendingPlayers = BuildOnlinePlayers();
+
+            _localInput = gameObject.AddComponent<LocalPlayerInput>();
+            _playerInputs = new Dictionary<Player, IPlayerInput>();
+            List<NetworkPlayerInput> remoteInputs = new List<NetworkPlayerInput>();
+
+            foreach (var p in _pendingPlayers)
+            {
+                if (p.Id == MatchData.LocalPlayerId)
+                {
+                    _playerInputs.Add(p, _localInput);
+                }
+                else
+                {
+                    var remote = gameObject.AddComponent<NetworkPlayerInput>();
+                    remote.Configure(p.Id);
+                    _playerInputs.Add(p, remote);
+                    remoteInputs.Add(remote);
+                }
+            }
+
+            BindUIEvents();
+
+            if (MatchData.UseRelay)
+            {
+                var ugs = gameObject.AddComponent<UgsNetworkTransport>();
+                ugs.Configure(
+                    MatchData.LocalPlayerId,
+                    MatchData.IsHost,
+                    expectedPlayerCount: MatchData.PlayerNames.Count,
+                    joinCodeForClient: MatchData.IsHost ? null : MatchData.RelayJoinCode);
+                ugs.OnJoinCodeReady += HandleRelayJoinCodeReady;
+                ugs.OnStatusChanged += HandleOnlineStatusChanged;
+                _onlineTransport = ugs;
+            }
+            else
+            {
+                var loopback = gameObject.AddComponent<LocalLoopbackTransport>();
+                loopback.Configure(MatchData.LocalPlayerId, MatchData.IsHost, _onlineSimulatedLatencyMs);
+                _onlineTransport = loopback;
+            }
+
+            _sessionDirector = gameObject.AddComponent<NetworkSessionDirector>();
+            _sessionDirector.Configure(_onlineTransport, _localInput, remoteInputs);
+            _sessionDirector.OnSeedReceived += HandleSeedReceived;
+            _sessionDirector.BeginHandshake();
+        }
+
+        private void HandleRelayJoinCodeReady(string code)
+        {
+            MatchData.RelayJoinCode = code;
+            if (_relayJoinCodeView != null) _relayJoinCodeView.Show(code);
+        }
+
+        private void HandleOnlineStatusChanged(NetworkStatus status)
+        {
+            if (_relayJoinCodeView == null) return;
+            // Once the wire is fully connected (peers joined + handshake possible), hide the code overlay.
+            if (status == NetworkStatus.Connected) _relayJoinCodeView.Hide();
+        }
+
+        private List<Player> BuildOnlinePlayers()
+        {
+            List<Player> players = new List<Player>();
+            int count = MatchData.PlayerNames.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                string name = MatchData.PlayerNames[i];
+                bool isRemote = i < MatchData.IsRemoteFlags.Count && MatchData.IsRemoteFlags[i];
+
+                // Online lobby in Phase 1 has no bots; remote-vs-local is the only distinction.
+                players.Add(new Player(i, name, isBot: false, isRemote: isRemote));
+            }
+
+            return players;
+        }
+
+        private void HandleSeedReceived(int seed)
+        {
+            if (_matchManager != null) return;
+
+            _matchManager = new MatchManager(_pendingPlayers, seed);
+            _pendingPlayers = null;
+
+            BindManagerEvents();
+            OnOnlineMatchReady?.Invoke(_matchManager, _onlineTransport);
+            _matchManager.StartGame();
         }
 
         private void BindUIEvents()
@@ -306,9 +432,9 @@ namespace DiceGame.Controllers
         {
             if (_mainActionButton == null || _mainActionIcon == null || _matchManager == null) return;
 
-            bool isHuman = !_matchManager.CurrentPlayer.IsBot;
+            bool isLocalHuman = IsLocalHuman(_matchManager.CurrentPlayer);
 
-            _mainActionButton.interactable = isHuman && !_isDiceRolling && !_isTransitioningTurn;
+            _mainActionButton.interactable = isLocalHuman && !_isDiceRolling && !_isTransitioningTurn;
 
             if (_isScoreboardVisibleInternal)
             {
@@ -326,11 +452,15 @@ namespace DiceGame.Controllers
         private void HandleCupDragToRoll()
         {
             if (_isDiceRolling || !_canStartRoll || _matchManager == null || _isTransitioningTurn) return;
-            if (_matchManager.Cup.RollsLeft <= 0 || _matchManager.CurrentPlayer.IsBot) return;
+            if (_matchManager.Cup.RollsLeft <= 0) return;
+            if (!IsLocalHuman(_matchManager.CurrentPlayer)) return;
 
             _canStartRoll = false;
             _localInput.TriggerRoll();
         }
+
+        private static bool IsLocalHuman(Player player)
+            => player != null && !player.IsBot && !player.IsRemote;
 
         private void HandleDiceRolled(DiceCup cup)
         {
@@ -350,8 +480,10 @@ namespace DiceGame.Controllers
             if (_hintView != null) _hintView.HideHint();
             if (_diceCanvasGroup != null) _diceCanvasGroup.blocksRaycasts = false;
 
-            bool isHuman = !_matchManager.CurrentPlayer.IsBot;
-            if (!isHuman)
+            bool isLocalHuman = IsLocalHuman(_matchManager.CurrentPlayer);
+            // Bots and remote peers both run a non-interactive quick reroll on the scoreboard.
+            // Phase 1 placeholder; richer remote-player visuals can come later.
+            if (!isLocalHuman)
             {
                 yield return PlayBotScoreboardRollRoutine(cup);
                 _isDiceRolling = false;
@@ -376,7 +508,7 @@ namespace DiceGame.Controllers
             if (!allDiceHeld)
             {
                 // #region agent log
-                AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "dice lift to y+200 started", $"{{\"playerIsBot\":{(!isHuman).ToString().ToLower()},\"remainingRolls\":{cup.RollsLeft}}}");
+                AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "dice lift to y+200 started", $"{{\"playerIsBot\":{(!isLocalHuman).ToString().ToLower()},\"remainingRolls\":{cup.RollsLeft}}}");
                 // #endregion
                 List<Coroutine> slideRoutines = new List<Coroutine>();
                 List<DieView> diceToCollect = new List<DieView>();
@@ -393,7 +525,7 @@ namespace DiceGame.Controllers
 
                 foreach (var routine in slideRoutines) yield return routine;
                 // #region agent log
-                AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "dice lift to y+200 finished", $"{{\"playerIsBot\":{(!isHuman).ToString().ToLower()},\"diceToCollectCount\":{diceToCollect.Count}}}");
+                AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "dice lift to y+200 finished", $"{{\"playerIsBot\":{(!isLocalHuman).ToString().ToLower()},\"diceToCollectCount\":{diceToCollect.Count}}}");
                 // #endregion
                 yield return new WaitForSeconds(0.2f);
 
@@ -417,7 +549,7 @@ namespace DiceGame.Controllers
                     _diceCupView.OnCupDragged += onDrag;
                     _diceCupView.OnShakeCompleted += onShakeComplete;
 
-                    if (isHuman) {
+                    if (isLocalHuman) {
                         _diceCupView.EnableInteraction();
                         while (!shakeFinished) yield return null;
                     } else {
@@ -454,7 +586,7 @@ namespace DiceGame.Controllers
 
             if (!allDiceHeld)
             {
-                if (_rollDiceSounds != null && _rollDiceSounds.Length > 0 && isHuman)
+                if (_rollDiceSounds != null && _rollDiceSounds.Length > 0 && isLocalHuman)
                 {
                     AudioManager.Instance.PlaySFX(_rollDiceSounds[UnityEngine.Random.Range(0, _rollDiceSounds.Length)]);
                 }
@@ -489,7 +621,7 @@ namespace DiceGame.Controllers
             if (_diceCupView != null)
             {
                 _diceCupView.ResetCup();
-                if (isHuman && cup.RollsLeft > 0)
+                if (isLocalHuman && cup.RollsLeft > 0)
                 {
                     _diceCupView.EnableInteraction();
                 }
@@ -497,13 +629,13 @@ namespace DiceGame.Controllers
 
             UpdatePotentialScores(cup, _matchManager.CurrentPlayer);
 
-            if (isHuman && _hintView != null)
+            if (isLocalHuman && _hintView != null)
             {
                 ScoreCategory? bestHint = HintCalculator.GetBestHint(_matchManager.CurrentPlayer.ScoreCard, cup.Dice, cup.RollsLeft);
                 if (bestHint.HasValue) _hintView.ShowHint(bestHint.Value);
             }
 
-            if (_diceCanvasGroup != null && isHuman) _diceCanvasGroup.blocksRaycasts = true;
+            if (_diceCanvasGroup != null && isLocalHuman) _diceCanvasGroup.blocksRaycasts = true;
 
             UpdateMainActionUI();
         }
@@ -578,8 +710,8 @@ namespace DiceGame.Controllers
             bool showPassDevice = false;
             if (_matchManager.Players.Count > 1 && _previousPlayer != null)
             {
-                bool wasHuman = !_previousPlayer.IsBot;
-                bool isNextHuman = !player.IsBot;
+                bool wasHuman = IsLocalHuman(_previousPlayer);
+                bool isNextHuman = IsLocalHuman(player);
                 if (wasHuman && isNextHuman) showPassDevice = true;
             }
 
@@ -628,10 +760,15 @@ namespace DiceGame.Controllers
             }
             else
             {
-                SetUIInteractable(true);
+                bool isLocalHuman = IsLocalHuman(player);
+                SetUIInteractable(isLocalHuman);
                 if (_skipBotButton != null) _skipBotButton.gameObject.SetActive(false);
-                if (_diceCupView != null) _diceCupView.EnableInteraction();
-                _canStartRoll = true;
+                if (_diceCupView != null)
+                {
+                    if (isLocalHuman) _diceCupView.EnableInteraction();
+                    else _diceCupView.DisableInteraction();
+                }
+                _canStartRoll = isLocalHuman;
             }
         }
 
@@ -747,7 +884,7 @@ namespace DiceGame.Controllers
         {
             SetUIInteractable(false);
             
-            Player localPlayer = rankings.FirstOrDefault(p => !p.IsBot);
+            Player localPlayer = rankings.FirstOrDefault(IsLocalHuman);
             if (localPlayer != null)
             {
                 int rewardCoins = Mathf.Max(10, localPlayer.ScoreCard.GrandTotal / 10); 
@@ -886,12 +1023,14 @@ namespace DiceGame.Controllers
             if (_mainActionButton != null) _mainActionButton.onClick.RemoveListener(HandleMainAction);
             LocalizationService.Instance.OnLanguageChanged -= HandleLanguageChanged;
             if (_matchManager != null) _matchManager.OnTurnEnded -= HandleTurnEnded;
+            if (_sessionDirector != null) _sessionDirector.OnSeedReceived -= HandleSeedReceived;
 
             if (_diceCupView != null) _diceCupView.OnCupTouched -= HandleCupDragToRoll;
         }
 
         private void HandleLanguageChanged()
         {
+            if (_matchManager == null || _matchManager.CurrentPlayer == null) return;
             RefreshUIForCurrentPlayer(_matchManager.CurrentPlayer);
             _scoreCardView.UpdateTranslations();
             _scoreCardView.RefreshDisplay(_matchManager.CurrentPlayer.ScoreCard);
