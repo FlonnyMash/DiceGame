@@ -1,79 +1,84 @@
-﻿Key;en;de;es;fr;it;pt
-menu_title;Yatzie;Kniffel;Yatzie;Yatzie;Yatzy;Yatzy
-btn_play_local;Local;Lokal;Local;Local;Locale;Local
-title_settings;Settings;Einstellungen;Ajustes;Paramètres;Impostazioni;Configurações
-title_languages;Languages;Sprachen;Idiomas;Langues;Lingue;Idiomas
-title_audio;Sound;Audio;Audio;Son;Audio;Som
-audio_master;Master Volume;Gesamtlautstärke;Volumen maestro;Volume principal;Volume master;Volume principal
-audio_music;Music;Musik;Música;Musique;Musica;Música
-audio_sfx;Sound Effects;Sound-Effekte;Efectos de sonido;Effets sonores;Effetti sonori;Efeitos sonoros
-btn_close;Close;Schließen;Cerrar;Fermer;Chiudi;Fechar
-cat_ones;Ones;Einer;Unos;Un;Uno;Uns
-cat_twos;Twos;Zweier;Doses;Deux;Due;Dois
-cat_threes;Threes;Dreier;Treses;Trois;Tre;Três
-cat_fours;Fours;Vierer;Cuatros;Quatre;Quattro;Quatros
-cat_fives;Fives;Fünfer;Cincos;Cinq;Cinque;Cincos
-cat_sixes;Sixes;Sechser;Seises;Six;Sei;Seis
-cat_threeofakind;Three Of A Kind;Drilling;Trío;Brelan;Tris;Trinca
-cat_fourofakind;Four Of A Kind;Vierling;Póker;Carré;Poker;Quadra
-cat_fullhouse;Full House;Full House;Full House;Full House;Full House;Full House
-cat_smallstraight;Small Straight;Kleine Straße;Escalera menor;Petite suite;Scala corta;Sequência menor
-cat_largestraight;Large Straight;Große Straße;Escalera mayor;Grande suite;Scala grande;Sequência maior
-cat_nicerdicer;Dice!;Dice!;Dice!;Dice!;Dice!;Dice!
-cat_chance;Chance;Chance;Suerte;Chance;Chance;Sorte
-you_vs_bot;You vs <color=red>Bot</color>;Du gegen <color=red>Bot</color>;Tú contra <color=red>Bot</color>;Vous contre <color=red>Bot</color>;Tu contro <color=red>Bot</color>;Você contra <color=red>Bot</color>
-players_count;{0} Players;{0} Spieler;{0} Jugadores;{0} Joueurs;{0} Giocatori;{0} Jogadores
-new_record;New Record: {0}!;Neuer Rekord: {0}!;¡Nuevo récord: {0}!;Nouveau record : {0} !;Nuovo record: {0}!;Novo recorde: {0}!
-high_score;High Score: {0};High Score: {0};High Score: {0};High Score : {0};High Score: {0};High Score: {0}
-turn_indicator;Turn: {0};Am Zug: {0};Turno: {0};Tour : {0};Turno: {0};Vez de: {0}
-claim_bonus;CLAIM BONUS!;BONUS HOLEN!;¡RECLAMAR BONO!;RÉCUPÉRER LE BONUS !;RISCATTA BONUS!;RESGATAR BÔNUS!
-bonus_claimed;Claimed!;Eingesammelt!;¡Reclamado!;Réclamé !;Riscattato!;Resgatado!
-bonus_progress;Bonus {0}/{1};Bonus {0}/{1};Bono {0}/{1};Bonus {0}/{1};Bonus {0}/{1};Bônus {0}/{1}
-game_over;Game Over;Spiel vorbei;Fin del juego;Partie terminée;Fine partita;Fim de jogo
-your_score;Your Score: {0};Deine Punkte: {0};Tu puntuación: {0};Votre score : {0};Il tuo punteggio: {0};Sua pontuação: {0}
-pass_device;{0} is next!\nPass the device.;{0} ist dran!\nGerät weitergeben.;¡Es el turno de {0}!\nPasa el dispositivo.;{0} est le prochain !\nPassez l'appareil.;{0} è il prossimo!\nPassa il dispositivo.;{0} é o próximo!\nPasse o dispositivo.
-btn_local;Local;Lokal;Local;Local;Locale;Local
-btn_private;Private;Privat;Privado;Privé;Privato;Privado
-btn_online;Online;Online;En línea;En ligne;Online;Online
-btn_multiplayer;Multiplayer;Mehrspieler;Multijugador;Multijoueur;Multigiocatore;Multijogador
-btn_singleplayer;Singleplayer;Einzelspieler;Un jugador;Solo;Giocatore singolo;Um jogador
-btn_skip_bot;Skip;Überspringen;Saltar;Passer;Salta;Pular
-total_points;TOTAL;PUNKTE;TOTAL;TOTAL;TOTALE;TOTAL
-title_score;SCORE;PUNKTZAHL;PUNTUACIÓN;SCORE;PUNTEGGIO;PONTUAÇÃO
-title_local;Local;Lokal;Local;Local;Locale;Local
-btn_start;Start;Start;Empezar;Démarrer;Avvia;Iniciar
-input_player_one;Player 1;Spieler 1;Jugador 1;Joueur 1;Giocatore 1;Jogador 1
-input_player_two;Player 2;Spieler 2;Jugador 2;Joueur 2;Giocatore 2;Jogador 2
-input_player_three;Player 3;Spieler 3;Jugador 3;Joueur 3;Giocatore 3;Jogador 3
-input_player_four;Player 4;Spieler 4;Jugador 4;Joueur 4;Giocatore 4;Jogador 4
-btn_main_menu;Main Menu;Hauptmenü;Menú principal;Menu principal;Menu principale;Menu principal
-hint_threeofakind;Three Of A Kind;Drilling;Trío;Brelan;Tris;Trinca
-hint_fourofakind;Four Of A Kind;Vierling;Póker;Carré;Poker;Quadra
-hint_fullhouse;Full House;Full House;Full House;Full House;Full House;Full House
-hint_smallstraight;Small Straight;Kleine Straße;Escalera menor;Petite suite;Scala corta;Sequência menor
-hint_largestraight;Large Straight;Große Straße;Escalera mayor;Grande suite;Scala grande;Sequência maior
-hint_nicerdicer;Dice!;Dice!;Dice!;Dice!;Dice!;Dice!
-hint_chance;Chance;Chance;Suerte;Chance;Chance;Sorte
-shop_item_dice_gold;Golden Dice;Goldwürfel;;;;
-shop_desc_dice_gold;Leather Cup;Lederbecher;;;;
-shop_item_owned;Owned;Gekauft;;;;
-title_shop;SHOP;SHOP;SHOP;SHOP;SHOP;SHOP
-shop_item_dice_default;Default;Standard;;;;
-shop_desc_dice_default;Default Dice Skin;Standard Würfel;;;;
-shop_item_equip;Equip;Ausrüsten;;;;
-shop_item_equipped;Equipped;Ausgerüstet;;;;
-shop_item_free;FREE;KOSTENLOS;;;;
-shop_item_cup_leather;Leather Cup;Lederbecher;;;;
-shop_desc_cup_leather;Leather Cup;Lederbecher;;;;
-shop_item_dice_white;White Dice;Weißer Würfel;;;;
-shop_desc_dice_white;It's white;Ist halt weiß;;;;
-msg_connecting;Connecting...;Verbinde...;Conectando...;Connexion...;Connessione...;Conectando...
-msg_waiting_for_opponent;Waiting for opponent...;Warte auf Gegner...;Esperando al oponente...;En attente d'un adversaire...;In attesa dell'avversario...;Aguardando o oponente...
-msg_connected;Connected;Verbunden;Conectado;Connecté;Connesso;Conectado
-msg_remote_turn;Remote player's turn;Gegner ist am Zug;Turno del rival remoto;Tour du joueur distant;Turno del giocatore remoto;Turno do jogador remoto
-err_connection_failed;Connection failed;Verbindung fehlgeschlagen;Conexión fallida;Échec de la connexion;Connessione non riuscita;Falha na conexão
-err_connection_lost;Connection lost;Verbindung verloren;Conexión perdida;Connexion perdue;Connessione persa;Conexão perdida
-btn_online_play;Online Play;Online spielen;Juego en línea;Jouer en ligne;Gioca online;Jogar online
-btn_private_lobby;Private Lobby;Private Lobby;Sala privada;Salon privé;Lobby privata;Lobby privada
-title_code;Code:;Code:;Código:;Code:;Codice:;Código:
-title_online;Online;Online;Online;Online;Online;Online
+﻿Key	en	de	es	fr	it	pt
+menu_title	Yatzie	Kniffel	Yatzie	Yatzie	Yatzy	Yatzy
+btn_play_local	Local	Lokal	Local	Local	Locale	Local
+title_settings	Settings	Einstellungen	Ajustes	Param�tres	Impostazioni	Configura��es
+title_languages	Languages	Sprachen	Idiomas	Langues	Lingue	Idiomas
+title_audio	Sound	Audio	Audio	Son	Audio	Som
+audio_master	Master Volume	Gesamtlautst�rke	Volumen maestro	Volume principal	Volume master	Volume principal
+audio_music	Music	Musik	M�sica	Musique	Musica	M�sica
+audio_sfx	Sound Effects	Sound-Effekte	Efectos de sonido	Effets sonores	Effetti sonori	Efeitos sonoros
+btn_close	Close	Schlie�en	Cerrar	Fermer	Chiudi	Fechar
+cat_ones	Ones	Einer	Unos	Un	Uno	Uns
+cat_twos	Twos	Zweier	Doses	Deux	Due	Dois
+cat_threes	Threes	Dreier	Treses	Trois	Tre	Tr�s
+cat_fours	Fours	Vierer	Cuatros	Quatre	Quattro	Quatros
+cat_fives	Fives	F�nfer	Cincos	Cinq	Cinque	Cincos
+cat_sixes	Sixes	Sechser	Seises	Six	Sei	Seis
+cat_threeofakind	Three Of A Kind	Drilling	Tr�o	Brelan	Tris	Trinca
+cat_fourofakind	Four Of A Kind	Vierling	P�ker	Carr�	Poker	Quadra
+cat_fullhouse	Full House	Full House	Full House	Full House	Full House	Full House
+cat_smallstraight	Small Straight	Kleine Stra�e	Escalera menor	Petite suite	Scala corta	Sequ�ncia menor
+cat_largestraight	Large Straight	Gro�e Stra�e	Escalera mayor	Grande suite	Scala grande	Sequ�ncia maior
+cat_nicerdicer	Dice!	Dice!	Dice!	Dice!	Dice!	Dice!
+cat_chance	Chance	Chance	Suerte	Chance	Chance	Sorte
+you_vs_bot	You vs <color=red>Bot</color>	Du gegen <color=red>Bot</color>	T� contra <color=red>Bot</color>	Vous contre <color=red>Bot</color>	Tu contro <color=red>Bot</color>	Voc� contra <color=red>Bot</color>
+players_count	{0} Players	{0} Spieler	{0} Jugadores	{0} Joueurs	{0} Giocatori	{0} Jogadores
+new_record	New Record: {0}!	Neuer Rekord: {0}!	�Nuevo r�cord: {0}!	Nouveau record : {0} !	Nuovo record: {0}!	Novo recorde: {0}!
+high_score	High Score: {0}	High Score: {0}	High Score: {0}	High Score : {0}	High Score: {0}	High Score: {0}
+turn_indicator	Turn: {0}	Am Zug: {0}	Turno: {0}	Tour : {0}	Turno: {0}	Vez de: {0}
+claim_bonus	CLAIM BONUS!	BONUS HOLEN!	�RECLAMAR BONO!	R�CUP�RER LE BONUS !	RISCATTA BONUS!	RESGATAR B�NUS!
+bonus_claimed	Claimed!	Eingesammelt!	�Reclamado!	R�clam� !	Riscattato!	Resgatado!
+bonus_progress	Bonus {0}/{1}	Bonus {0}/{1}	Bono {0}/{1}	Bonus {0}/{1}	Bonus {0}/{1}	B�nus {0}/{1}
+game_over	Game Over	Spiel vorbei	Fin del juego	Partie termin�e	Fine partita	Fim de jogo
+your_score	Your Score: {0}	Deine Punkte: {0}	Tu puntuaci�n: {0}	Votre score : {0}	Il tuo punteggio: {0}	Sua pontua��o: {0}
+pass_device	{0} is next!\nPass the device.	{0} ist dran!\nGer�t weitergeben.	�Es el turno de {0}!\nPasa el dispositivo.	{0} est le prochain !\nPassez l'appareil.	{0} � il prossimo!\nPassa il dispositivo.	{0} � o pr�ximo!\nPasse o dispositivo.
+btn_local	Local	Lokal	Local	Local	Locale	Local
+btn_private	Private	Privat	Privado	Priv�	Privato	Privado
+btn_online	Online	Online	En l�nea	En ligne	Online	Online
+btn_multiplayer	Multiplayer	Mehrspieler	Multijugador	Multijoueur	Multigiocatore	Multijogador
+btn_singleplayer	Singleplayer	Einzelspieler	Un jugador	Solo	Giocatore singolo	Um jogador
+btn_skip_bot	Skip	�berspringen	Saltar	Passer	Salta	Pular
+total_points	TOTAL	PUNKTE	TOTAL	TOTAL	TOTALE	TOTAL
+title_score	SCORE	PUNKTZAHL	PUNTUACI�N	SCORE	PUNTEGGIO	PONTUA��O
+title_local	Local	Lokal	Local	Local	Locale	Local
+btn_start	Start	Start	Empezar	D�marrer	Avvia	Iniciar
+input_player_one	Player 1	Spieler 1	Jugador 1	Joueur 1	Giocatore 1	Jogador 1
+input_player_two	Player 2	Spieler 2	Jugador 2	Joueur 2	Giocatore 2	Jogador 2
+input_player_three	Player 3	Spieler 3	Jugador 3	Joueur 3	Giocatore 3	Jogador 3
+input_player_four	Player 4	Spieler 4	Jugador 4	Joueur 4	Giocatore 4	Jogador 4
+btn_main_menu	Main Menu	Hauptmen�	Men� principal	Menu principal	Menu principale	Menu principal
+hint_threeofakind	Three Of A Kind	Drilling	Tr�o	Brelan	Tris	Trinca
+hint_fourofakind	Four Of A Kind	Vierling	P�ker	Carr�	Poker	Quadra
+hint_fullhouse	Full House	Full House	Full House	Full House	Full House	Full House
+hint_smallstraight	Small Straight	Kleine Stra�e	Escalera menor	Petite suite	Scala corta	Sequ�ncia menor
+hint_largestraight	Large Straight	Gro�e Stra�e	Escalera mayor	Grande suite	Scala grande	Sequ�ncia maior
+hint_nicerdicer	Dice!	Dice!	Dice!	Dice!	Dice!	Dice!
+hint_chance	Chance	Chance	Suerte	Chance	Chance	Sorte
+shop_item_dice_gold	Golden Dice	Goldw�rfel				
+shop_desc_dice_gold	Leather Cup	Lederbecher				
+shop_item_owned	Owned	Gekauft				
+title_shop	SHOP	SHOP	SHOP	SHOP	SHOP	SHOP
+shop_item_dice_default	Default	Standard				
+shop_desc_dice_default	Default Dice Skin	Standard W�rfel				
+shop_item_equip	Equip	Ausr�sten				
+shop_item_equipped	Equipped	Ausger�stet				
+shop_item_free	FREE	KOSTENLOS				
+shop_item_cup_leather	Leather Cup	Lederbecher				
+shop_desc_cup_leather	Leather Cup	Lederbecher				
+shop_item_dice_white	White Dice	Wei�er W�rfel				
+shop_desc_dice_white	It's white	Ist halt wei�				
+msg_connecting	Connecting...	Verbinde...	Conectando...	Connexion...	Connessione...	Conectando...
+msg_waiting_for_opponent	Waiting for opponent...	Warte auf Gegner...	Esperando al oponente...	En attente d'un adversaire...	In attesa dell'avversario...	Aguardando o oponente...
+msg_connected	Connected	Verbunden	Conectado	Connect�	Connesso	Conectado
+msg_remote_turn	Remote player's turn	Gegner ist am Zug	Turno del rival remoto	Tour du joueur distant	Turno del giocatore remoto	Turno do jogador remoto
+err_connection_failed	Connection failed	Verbindung fehlgeschlagen	Conexi�n fallida	�chec de la connexion	Connessione non riuscita	Falha na conex�o
+err_connection_lost	Connection lost	Verbindung verloren	Conexi�n perdida	Connexion perdue	Connessione persa	Conex�o perdida
+btn_online_play	Online Play	Online spielen	Juego en l�nea	Jouer en ligne	Gioca online	Jogar online
+btn_private_lobby	Private Lobby	Private Lobby	Sala privada	Salon priv�	Lobby privata	Lobby privada
+title_code	Code:	Code:	C�digo:	Code:	Codice:	C�digo:
+title_online	Online	Online	Online	Online	Online	Online
+btn_join_game	Join	Beitreten	Unirse	Rejoindre	Unisciti	Entrar
+btn_host_game	Host Game	Spiel Erstellen	Crear partida	Créer une partie	Crea partita	Criar jogo
+input_enter_name	Enter Name	Name eingeben	Introduce nombre	Entrez le nom	Inserisci nome	Digite o nome
+input_enter_code	Enter Code	Code Eingeben	Introduce código	Entrez le code	Inserisci codice	Digite o código
+btn_back	Back	Zurück	Atrás	Retour	Indietro	Voltar

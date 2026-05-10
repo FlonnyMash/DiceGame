@@ -76,5 +76,18 @@
   "btn_online_play": "Online Play",
   "btn_private_lobby": "Private Lobby",
   "title_code": "Code:",
-  "title_online": "Online"
+  "title_online": "Online",
+  "lobby_title": "Online Lobby",
+  "lobby_join_code": "Code: {0}",
+  "lobby_player_slot_empty": "Empty",
+  "lobby_waiting_host": "Waiting for host to start...",
+  "lobby_host_pending": "Host",
+  "lobby_start_button": "Start Game",
+  "err_connection_unstable": "Connection unstable...",
+  "err_desync_detected": "Desync detected. Match aborted.",
+  "btn_join_game": "Join",
+  "btn_host_game": "Host Game",
+  "input_enter_name": "Enter Name",
+  "input_enter_code": "Enter Code",
+  "btn_back": "Back"
 }

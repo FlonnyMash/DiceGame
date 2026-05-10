@@ -13,10 +13,14 @@ namespace DiceGame.Networking
     // Responsibilities:
     //   1. Seed handshake. Host generates a non-zero dice RNG seed and broadcasts it.
     //      Clients wait for the Seed action before constructing MatchManager.
-    //   2. Outbound. Subscribe to the local player's IPlayerInput events and forward each
-    //      one as a PlayerAction over the wire (lockstep: only commands cross).
-    //   3. Inbound. Deserialize incoming bytes and route the PlayerAction to the
-    //      NetworkPlayerInput that represents the originating remote player.
+    //   2. Outbound (gameplay actions). Subscribe to the local player's IPlayerInput events and
+    //      forward each one as a PlayerAction over the wire. Lockstep: only commands cross.
+    //   3. Inbound (gameplay actions). Deserialize incoming bytes and route the PlayerAction to
+    //      the NetworkPlayerInput that represents the originating remote player.
+    //   4. Phase 2C dispatch. New packet types (StateHash / SyncOk / Abort) are surfaced as
+    //      typed events for LockstepHashGate / GameController to consume. Lobby-only packets
+    //      (Identify / StartMatch) are ignored here -- they're owned by OnlineLobbyController
+    //      while it has the transport, and never appear during an in-match session.
     public class NetworkSessionDirector : MonoBehaviour
     {
         private INetworkService _networkService;
@@ -29,6 +33,12 @@ namespace DiceGame.Networking
 
         public event Action<int> OnSeedReceived;
         public event Action<NetworkStatus> OnStatusChanged;
+
+        // Phase 2C events. Subscribed by LockstepHashGate (StateHash / SyncOk) and GameController
+        // (Abort), defined here so the director remains the single packet-dispatch fan-out.
+        public event Action<StateHashPacket> OnStateHashReceived;
+        public event Action<int> OnSyncOkReceived;          // payload: turnIndex
+        public event Action<AbortReason> OnAbortReceived;
 
         public void Configure(INetworkService networkService, IPlayerInput localInput, IEnumerable<NetworkPlayerInput> remoteInputs)
         {
@@ -136,20 +146,77 @@ namespace DiceGame.Networking
             _networkService.SendAction(action.Serialize());
         }
 
-        // --- Inbound: wire -> NetworkPlayerInput ------------------------------------------
-
-        private void HandleNetworkBytes(byte[] data)
+        public void BroadcastAbort(AbortReason reason)
         {
-            if (!PlayerAction.TryDeserialize(data, out var action))
+            if (_networkService == null) return;
+            if (_networkService.Status != NetworkStatus.Connected) return;
+            var action = new PlayerAction(PlayerActionType.Abort, _networkService.LocalPlayerId, (int)reason);
+            _networkService.SendAction(action.Serialize());
+        }
+
+        // --- Inbound: wire -> NetworkPlayerInput / typed events ---------------------------
+
+        private void HandleNetworkBytes(byte[] data, ulong _)
+        {
+            if (data == null || data.Length == 0) return;
+            if (!WireFormat.TryPeekType(data, out var type))
             {
-                Debug.LogWarning("[NetworkSessionDirector] Dropping malformed PlayerAction packet.");
+                Debug.LogWarning("[NetworkSessionDirector] Empty packet; dropping.");
                 return;
             }
 
-            if (action.Type == PlayerActionType.Seed)
+            switch (type)
             {
-                ApplySeed(action.Payload);
-                return;
+                case PlayerActionType.StateHash:
+                    if (StateHashPacket.TryDeserialize(data, out var hashPacket))
+                    {
+                        OnStateHashReceived?.Invoke(hashPacket);
+                    }
+                    return;
+
+                case PlayerActionType.Identify:
+                case PlayerActionType.StartMatch:
+                    // Lobby-only. Should not appear here in a healthy session; ignore.
+                    return;
+
+                case PlayerActionType.Seed:
+                case PlayerActionType.Roll:
+                case PlayerActionType.ToggleHold:
+                case PlayerActionType.Category:
+                case PlayerActionType.BonusClaim:
+                case PlayerActionType.SyncOk:
+                case PlayerActionType.Abort:
+                    if (PlayerAction.TryDeserialize(data, out var action))
+                    {
+                        DispatchFixedAction(action);
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[NetworkSessionDirector] Malformed fixed-format packet.");
+                    }
+                    return;
+
+                default:
+                    Debug.LogWarning($"[NetworkSessionDirector] Unknown packet type {(byte)type}; dropping.");
+                    return;
+            }
+        }
+
+        private void DispatchFixedAction(PlayerAction action)
+        {
+            switch (action.Type)
+            {
+                case PlayerActionType.Seed:
+                    ApplySeed(action.Payload);
+                    return;
+
+                case PlayerActionType.SyncOk:
+                    OnSyncOkReceived?.Invoke(action.Payload);
+                    return;
+
+                case PlayerActionType.Abort:
+                    OnAbortReceived?.Invoke((AbortReason)action.Payload);
+                    return;
             }
 
             // Skip echoes of our own commands. The local MatchManager already applied them

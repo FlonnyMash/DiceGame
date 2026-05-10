@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using DiceGame.Core.Interfaces;
 using DiceGame.Core.Rules;
@@ -22,17 +21,6 @@ namespace DiceGame.Core.Inputs
         private Coroutine _botRoutine;
         private bool _isSkipping = false;
         private MatchManager _matchManager;
-        
-        // #region agent log
-        private static void AgentLog(string runId, string hypothesisId, string location, string message, string dataJson)
-        {
-            try
-            {
-                File.AppendAllText("debug-f7e117.log", $"{{\"sessionId\":\"f7e117\",\"runId\":\"{runId}\",\"hypothesisId\":\"{hypothesisId}\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"timestamp\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}}}\n");
-            }
-            catch { }
-        }
-        // #endregion
 
         public void SetActive(bool isActive)
         {
@@ -43,9 +31,6 @@ namespace DiceGame.Core.Inputs
         public void StartBotTurn(DiceCup currentCup, ScoreCard currentScoreCard, MatchManager matchManager)
         {
             if (!_isActive) return;
-            // #region agent log
-            AgentLog("pre-fix", "H1", "BotPlayerInput.StartBotTurn", "bot turn started", $"{{\"isActive\":{_isActive.ToString().ToLower()},\"rollsLeft\":{currentCup.RollsLeft}}}");
-            // #endregion
 
             _matchManager = matchManager;
             _isSkipping = false;
@@ -57,9 +42,6 @@ namespace DiceGame.Core.Inputs
         {
             if (_isSkipping || !_isActive) return;
             _isSkipping = true;
-            // #region agent log
-            AgentLog("pre-fix", "H3", "BotPlayerInput.SkipBotTurn", "skip requested", $"{{\"rollsLeft\":{currentCup.RollsLeft},\"alreadySkipping\":false}}");
-            // #endregion
 
             if (_botRoutine != null) StopCoroutine(_botRoutine);
             
@@ -69,10 +51,6 @@ namespace DiceGame.Core.Inputs
 
         private void FastForwardRolls(DiceCup cup, ScoreCard scoreCard)
         {
-            // #region agent log
-            AgentLog("post-fix", "H7", "BotPlayerInput.FastForwardRolls", "skip simulation started", $"{{\"rollsLeftStart\":{cup.RollsLeft}}}");
-            // #endregion
-
             int emergencyBreak = 0;
             while (cup.RollsLeft > 0 && emergencyBreak < 3)
             {
@@ -101,9 +79,6 @@ namespace DiceGame.Core.Inputs
 
             // Kategorie wählen und Zug beenden
             ScoreCategory chosenCategory = BotLogic.ChooseBestCategory(scoreCard, cup.Dice);
-            // #region agent log
-            AgentLog("post-fix", "H7", "BotPlayerInput.FastForwardRolls", "skip simulation finished", $"{{\"rollsLeftEnd\":{cup.RollsLeft},\"chosenCategory\":{(int)chosenCategory}}}");
-            // #endregion
             OnCategoryRequested?.Invoke(chosenCategory); 
         }
 
@@ -113,9 +88,6 @@ namespace DiceGame.Core.Inputs
 
             for (int r = 0; r < 3; r++)
             {
-                // #region agent log
-                AgentLog("pre-fix", "H1", "BotPlayerInput.RunBotRoutine", "bot roll requested", $"{{\"step\":{r},\"rollsLeftBefore\":{cup.RollsLeft},\"isSkipping\":{_isSkipping.ToString().ToLower()}}}");
-                // #endregion
                 // A) WÜRFELN (Löst Event aus, statt _gameController direkt aufzurufen)
                 int rollsBefore = cup.RollsLeft;
                 OnRollRequested?.Invoke();

@@ -11,7 +11,8 @@ namespace DiceGame.Core.Interfaces
 
         void SendAction(byte[] data);
 
-        event Action<byte[]> OnActionReceived;
+        /// <summary>Wire payload plus Netcode client id of the sender (for lobby routing).</summary>
+        event Action<byte[], ulong> OnActionReceived;
         event Action<NetworkStatus> OnStatusChanged;
     }
 }

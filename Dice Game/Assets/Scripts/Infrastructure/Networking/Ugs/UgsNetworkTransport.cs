@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
 using Unity.Services.Multiplayer;
@@ -18,16 +20,23 @@ namespace DiceGame.Infrastructure.Networking.Ugs
     //
     // Wire path (host -> client):
     //   SendAction(bytes) -> SendNamedMessage("DiceLockstep", clientIds, FastBufferWriter)
-    //                     -> Relay -> client's HandleNamedMessage -> OnActionReceived(bytes)
+    //                     -> Relay -> client's HandleNamedMessage -> OnActionReceived(bytes, senderId)
     //
     // Wire path (client -> client via host relay):
     //   client.SendAction(bytes) -> SendNamedMessage(server, ...)
     //                            -> host.HandleNamedMessage(senderId, bytes)
-    //                            -> ForwardToPeers(senderId, bytes) + OnActionReceived(bytes)
-    //                            -> peers receive via their HandleNamedMessage -> OnActionReceived(bytes)
+    //                            -> ForwardToPeers(senderId, bytes) + OnActionReceived(bytes, senderId)
+    //                            -> peers receive via their HandleNamedMessage -> OnActionReceived(bytes, senderId)
+    //
+    // Phase 2C lobby semantics: NetworkStatus.Connected now means "the local node is on the wire and
+    // can send/receive bytes" (host: server started; guest: connected to host). It DOES NOT mean "all
+    // expected peers have arrived" -- the lobby decides that based on Identify packets and clicks
+    // "Start Match" when it's ready. Mid-match peer drops fire OnPeerDisconnected; the LockstepHashGate
+    // is responsible for noticing the missing hash and aborting via its hard timeout.
     public class UgsNetworkTransport : MonoBehaviour, INetworkService
     {
         public const string MessageName = "DiceLockstep";
+        public const int AbsoluteMaxPlayers = 4;
 
         // Cross-instance shutdown coordination: a freshly-spawned transport awaits this Task before
         // creating a new session, so any LeaveAsync / NGO Shutdown from a previous match has fully
@@ -35,29 +44,36 @@ namespace DiceGame.Infrastructure.Networking.Ugs
         private static Task s_PreviousShutdownTask = Task.CompletedTask;
 
         public NetworkStatus Status { get; private set; } = NetworkStatus.Disconnected;
-        public int LocalPlayerId { get; private set; }
+        public int LocalPlayerId { get; set; }
         public bool IsHost { get; private set; }
 
         public string JoinCode { get; private set; }
         public event Action<string> OnJoinCodeReady;
 
-        public event Action<byte[]> OnActionReceived;
+        public event Action<byte[], ulong> OnActionReceived;
         public event Action<NetworkStatus> OnStatusChanged;
 
-        private int _expectedPlayerCount = 2;
+        // Host-only lobby events: one fire per remote peer joining/leaving the underlying session.
+        // Local (host) connect events are filtered out so subscribers don't have to special-case self.
+        public event Action<ulong> OnPeerConnected;
+        public event Action<ulong> OnPeerDisconnected;
+
+        public IReadOnlyCollection<ulong> ConnectedPeerIds => _connectedPeerIds;
+
+        private int _maxPlayers = AbsoluteMaxPlayers;
         private string _joinCodeForClient;
-        private int _connectedPeerCount;
         private bool _handlerRegistered;
         private ISession _session;
         private CancellationTokenSource _bootstrapCts;
         private bool _disposed;
         private readonly List<ulong> _broadcastBuffer = new List<ulong>();
+        private readonly HashSet<ulong> _connectedPeerIds = new HashSet<ulong>();
 
-        public void Configure(int localPlayerId, bool isHost, int expectedPlayerCount, string joinCodeForClient = null)
+        public void Configure(int localPlayerId, bool isHost, int maxPlayers, string joinCodeForClient = null)
         {
             LocalPlayerId = localPlayerId;
             IsHost = isHost;
-            _expectedPlayerCount = Mathf.Max(2, expectedPlayerCount);
+            _maxPlayers = Mathf.Clamp(maxPlayers, 2, AbsoluteMaxPlayers);
             _joinCodeForClient = joinCodeForClient;
         }
 
@@ -112,6 +128,8 @@ namespace DiceGame.Infrastructure.Networking.Ugs
                     return;
                 }
 
+                ConfigureUnityTransportForRelay(nm);
+
                 // Defensive: drain any leftover NGO state from a prior session before the SDK
                 // tries to StartHost/StartClient on the persistent NetworkManager.
                 while (nm.ShutdownInProgress && !ct.IsCancellationRequested) await Task.Yield();
@@ -125,6 +143,10 @@ namespace DiceGame.Infrastructure.Networking.Ugs
                 }
                 if (ct.IsCancellationRequested || _disposed) return;
 
+                // UGS invokes SetRelayServerData then StartHost; WebSocket Relay requires UseWebSockets
+                // enabled on UnityTransport — (re-)apply here in case Shutdown touched transport state.
+                ConfigureUnityTransportForRelay(nm);
+
                 nm.OnServerStarted += HandleServerStarted;
                 nm.OnClientConnectedCallback += HandleClientConnected;
                 nm.OnClientDisconnectCallback += HandleClientDisconnected;
@@ -135,7 +157,7 @@ namespace DiceGame.Infrastructure.Networking.Ugs
                     var options = new SessionOptions
                     {
                         Name = "DiceGameMatch",
-                        MaxPlayers = _expectedPlayerCount,
+                        MaxPlayers = _maxPlayers,
                         IsPrivate = false
                     }.WithRelayNetwork();
 
@@ -172,6 +194,10 @@ namespace DiceGame.Infrastructure.Networking.Ugs
         {
             if (!IsHost) return;
             RegisterMessageHandler();
+            // Phase 2C: host is "Connected" the moment the server is listening. The lobby waits for
+            // Identify packets (which arrive AFTER guests connect at the NGO layer) before showing
+            // populated slots, but the byte-pipe is usable immediately for the host's own broadcasts.
+            SetStatus(NetworkStatus.Connected);
         }
 
         private void HandleClientConnected(ulong clientId)
@@ -182,10 +208,9 @@ namespace DiceGame.Infrastructure.Networking.Ugs
             if (IsHost)
             {
                 if (clientId == nm.LocalClientId) return;
-                _connectedPeerCount++;
-                if (_connectedPeerCount >= _expectedPlayerCount - 1)
+                if (_connectedPeerIds.Add(clientId))
                 {
-                    SetStatus(NetworkStatus.Connected);
+                    OnPeerConnected?.Invoke(clientId);
                 }
             }
             else
@@ -203,9 +228,20 @@ namespace DiceGame.Infrastructure.Networking.Ugs
 
             if (IsHost)
             {
-                if (clientId == nm.LocalClientId) { SetStatus(NetworkStatus.Disconnected); return; }
-                _connectedPeerCount = Mathf.Max(0, _connectedPeerCount - 1);
-                SetStatus(NetworkStatus.Disconnected);
+                if (clientId == nm.LocalClientId)
+                {
+                    // Host's own disconnect: tear the whole session down.
+                    SetStatus(NetworkStatus.Disconnected);
+                    return;
+                }
+
+                if (_connectedPeerIds.Remove(clientId))
+                {
+                    // Phase 2C: a peer dropping no longer flips the host's status. The lobby reacts
+                    // by removing the slot; the LockstepHashGate (in-match) detects the missing
+                    // StateHash and triggers AbortMatch through its hard-timeout pathway.
+                    OnPeerDisconnected?.Invoke(clientId);
+                }
             }
             else
             {
@@ -249,7 +285,7 @@ namespace DiceGame.Infrastructure.Networking.Ugs
                 ForwardToPeers(senderId, bytes);
             }
 
-            OnActionReceived?.Invoke(bytes);
+            OnActionReceived?.Invoke(bytes, senderId);
         }
 
         public void SendAction(byte[] data)
@@ -334,6 +370,7 @@ namespace DiceGame.Infrastructure.Networking.Ugs
             _session = null;
             s_PreviousShutdownTask = LeaveSessionAsync(session);
 
+            _connectedPeerIds.Clear();
             SetStatus(NetworkStatus.Disconnected);
             _disposed = true;
         }
@@ -343,6 +380,33 @@ namespace DiceGame.Infrastructure.Networking.Ugs
             if (session == null) return;
             try { await session.LeaveAsync(); }
             catch (Exception e) { Debug.LogWarning($"[UgsNetworkTransport] LeaveAsync threw: {e.Message}"); }
+        }
+
+        /// <summary>
+        /// Relay on WebGL is WebSocket-only; Unity Transport must enable Use WebSockets so
+        /// <see cref="UnityTransport.CreateDriver"/> picks WebSocketNetworkInterface (matching
+        /// <c>RelayServerData.IsWebSocket</c>). Desktop builds keep UDP/DTLS and leave Use WebSockets off.
+        /// </summary>
+        private static void ConfigureUnityTransportForRelay(NetworkManager nm)
+        {
+            UnityTransport utp = ResolveUnityTransport(nm);
+            if (utp == null)
+                return;
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+            utp.UseWebSockets = true;
+#elif UNITY_EDITOR || DEVELOPMENT_BUILD
+            if (Application.platform == RuntimePlatform.WebGLPlayer)
+                utp.UseWebSockets = true;
+#endif
+        }
+
+        private static UnityTransport ResolveUnityTransport(NetworkManager nm)
+        {
+            if (nm == null) return null;
+            if (nm.NetworkConfig?.NetworkTransport is UnityTransport fromConfig && fromConfig != null)
+                return fromConfig;
+            return nm.GetComponent<UnityTransport>();
         }
 
         // Diagnostic: emits each char with its hex codepoint so we can see whether the host's

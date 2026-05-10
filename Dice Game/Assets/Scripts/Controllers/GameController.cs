@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
-using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
+using Unity.Netcode;
 using DiceGame.Core.Models;
 using DiceGame.Core.Rules;
 using DiceGame.UI.Views;
@@ -18,7 +18,6 @@ using DiceGame.Core.Networking;
 using DiceGame.Services;
 using DiceGame.UI.Effects;
 using DiceGame.Configs;
-using DiceGame.Infrastructure.Networking;
 using DiceGame.Infrastructure.Networking.Ugs;
 using DiceGame.Networking;
 
@@ -73,13 +72,11 @@ namespace DiceGame.Controllers
         [SerializeField] private AudioClip _scoreCategorySound;
         [SerializeField] private AudioClip _bonusClaimSound;
 
-        [Header("Online Multiplayer (Phase 1)")]
-        [Tooltip("One-way simulated latency in ms used by the LocalLoopbackTransport for editor testing.")]
-        [SerializeField] private float _onlineSimulatedLatencyMs = 50f;
-
-        [Header("Online Multiplayer (Phase 2B)")]
-        [Tooltip("Optional overlay that displays the host's Relay join code while waiting for peers.")]
-        [SerializeField] private RelayJoinCodeView _relayJoinCodeView;
+        [Header("Online Multiplayer (Phase 2C)")]
+        [Tooltip("Localized status overlay used for connecting / desync / disconnect messages.")]
+        [SerializeField] private ConnectionStatusOverlay _connectionStatusOverlay;
+        [Tooltip("Optional: configure the lockstep hash-gate timeouts. Leave null to spawn one at runtime with defaults.")]
+        [SerializeField] private LockstepHashGate _lockstepHashGate;
 
         private MatchManager _matchManager;
         private LocalPlayerInput _localInput;
@@ -90,10 +87,12 @@ namespace DiceGame.Controllers
         private NetworkSessionDirector _sessionDirector;
         private INetworkService _onlineTransport;
         private List<Player> _pendingPlayers;
+        private bool _hasBeenConnected;
+        private bool _isMatchAborted;
 
-        // Public hooks for scene-side test scaffolding (e.g. FakeRemotePeer). The runtime-only
-        // MatchManager and INetworkService cannot be wired through the Inspector, so we expose
-        // them via getters + a one-shot ready event fired right after the seed handshake.
+        // Public hooks for scene-side test scaffolding. The runtime-only MatchManager and
+        // INetworkService cannot be wired through the Inspector, so we expose them via getters
+        // + a one-shot ready event fired right after the seed handshake.
         public MatchManager MatchManager => _matchManager;
         public INetworkService NetworkService => _onlineTransport;
         public event Action<MatchManager, INetworkService> OnOnlineMatchReady;
@@ -102,27 +101,13 @@ namespace DiceGame.Controllers
         private bool _isDiceRolling = false;
         private bool _isScoreboardVisibleInternal = true;
         private bool _canStartRoll = true;
-        
-        // #region agent log
-        private static void AgentLog(string runId, string hypothesisId, string location, string message, string dataJson)
-        {
-            try
-            {
-                File.AppendAllText("debug-f7e117.log", $"{{\"sessionId\":\"f7e117\",\"runId\":\"{runId}\",\"hypothesisId\":\"{hypothesisId}\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"timestamp\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}}}\n");
-            }
-            catch { }
-        }
-        // #endregion
-
-        private void Awake()
-        {
-        }
 
         private void Start()
         {
             _settingsPanel.SetActive(false);
             if (_passDeviceView != null) _passDeviceView.Hide();
             if (_gameOverView != null) _gameOverView.Hide();
+            if (_connectionStatusOverlay != null) _connectionStatusOverlay.Hide();
 
             if (MatchData.IsOnline)
             {
@@ -250,7 +235,8 @@ namespace DiceGame.Controllers
             }
         }
 
-        // Online flow: build players + inputs synchronously, spin up the transport + director,
+        // Online flow: rebind to the UgsNetworkTransport that the lobby attached to the persistent
+        // NetworkManager GameObject. Build players + inputs synchronously, spin up the director,
         // then defer MatchManager creation until the seed handshake completes (HandleSeedReceived).
         private void SetupOnlineSession()
         {
@@ -277,42 +263,43 @@ namespace DiceGame.Controllers
 
             BindUIEvents();
 
-            if (MatchData.UseRelay)
+            _onlineTransport = AcquirePersistentTransport();
+            if (_onlineTransport == null)
             {
-                var ugs = gameObject.AddComponent<UgsNetworkTransport>();
-                ugs.Configure(
-                    MatchData.LocalPlayerId,
-                    MatchData.IsHost,
-                    expectedPlayerCount: MatchData.PlayerNames.Count,
-                    joinCodeForClient: MatchData.IsHost ? null : MatchData.RelayJoinCode);
-                ugs.OnJoinCodeReady += HandleRelayJoinCodeReady;
-                ugs.OnStatusChanged += HandleOnlineStatusChanged;
-                _onlineTransport = ugs;
-            }
-            else
-            {
-                var loopback = gameObject.AddComponent<LocalLoopbackTransport>();
-                loopback.Configure(MatchData.LocalPlayerId, MatchData.IsHost, _onlineSimulatedLatencyMs);
-                _onlineTransport = loopback;
+                Debug.LogError("[GameController] No UgsNetworkTransport found on the persistent NetworkManager. Did the lobby create one?");
+                AbortMatch("err_connection_lost", broadcast: false);
+                return;
             }
 
             _sessionDirector = gameObject.AddComponent<NetworkSessionDirector>();
             _sessionDirector.Configure(_onlineTransport, _localInput, remoteInputs);
             _sessionDirector.OnSeedReceived += HandleSeedReceived;
+            _sessionDirector.OnStatusChanged += HandleOnlineStatusChanged;
+            _sessionDirector.OnAbortReceived += HandleAbortReceived;
             _sessionDirector.BeginHandshake();
+
+            // Host-only fast path: react to NGO peer disconnects in seconds rather than waiting
+            // for the 10s lockstep hard-timeout. The host then broadcasts Abort so guests learn
+            // the actual reason instead of timing out themselves.
+            if (_onlineTransport is UgsNetworkTransport ugs && MatchData.IsHost)
+            {
+                ugs.OnPeerDisconnected += HandlePeerDisconnectedAsHost;
+            }
+
+            // Track ever-connected so a subsequent transient blip can be shown as
+            // err_connection_lost rather than the initial msg_connecting message.
+            _hasBeenConnected = _onlineTransport.Status == NetworkStatus.Connected;
+            if (_connectionStatusOverlay != null && !_hasBeenConnected)
+            {
+                _connectionStatusOverlay.Show("msg_connecting");
+            }
         }
 
-        private void HandleRelayJoinCodeReady(string code)
+        private INetworkService AcquirePersistentTransport()
         {
-            MatchData.RelayJoinCode = code;
-            if (_relayJoinCodeView != null) _relayJoinCodeView.Show(code);
-        }
-
-        private void HandleOnlineStatusChanged(NetworkStatus status)
-        {
-            if (_relayJoinCodeView == null) return;
-            // Once the wire is fully connected (peers joined + handshake possible), hide the code overlay.
-            if (status == NetworkStatus.Connected) _relayJoinCodeView.Hide();
+            var nm = NetworkManager.Singleton;
+            if (nm == null) return null;
+            return nm.gameObject.GetComponent<UgsNetworkTransport>();
         }
 
         private List<Player> BuildOnlinePlayers()
@@ -325,7 +312,7 @@ namespace DiceGame.Controllers
                 string name = MatchData.PlayerNames[i];
                 bool isRemote = i < MatchData.IsRemoteFlags.Count && MatchData.IsRemoteFlags[i];
 
-                // Online lobby in Phase 1 has no bots; remote-vs-local is the only distinction.
+                // Online lobby has no bots; remote-vs-local is the only distinction.
                 players.Add(new Player(i, name, isBot: false, isRemote: isRemote));
             }
 
@@ -340,8 +327,145 @@ namespace DiceGame.Controllers
             _pendingPlayers = null;
 
             BindManagerEvents();
+            ConfigureLockstepGate();
+
             OnOnlineMatchReady?.Invoke(_matchManager, _onlineTransport);
             _matchManager.StartGame();
+        }
+
+        private void ConfigureLockstepGate()
+        {
+            if (_lockstepHashGate == null)
+            {
+                _lockstepHashGate = gameObject.AddComponent<LockstepHashGate>();
+            }
+            _lockstepHashGate.Configure(_onlineTransport, _matchManager, MatchData.PlayerNames.Count, MatchData.IsHost);
+            _lockstepHashGate.Begin();
+
+            _lockstepHashGate.OnSyncStalling += HandleSyncStalling;
+            _lockstepHashGate.OnDesyncDetected += HandleDesyncDetected;
+            _lockstepHashGate.OnSyncFailed += HandleSyncFailed;
+
+            // The director surfaces the wire packets; the gate consumes them.
+            _sessionDirector.OnStateHashReceived += _lockstepHashGate.HandleStateHash;
+            _sessionDirector.OnSyncOkReceived += _lockstepHashGate.HandleSyncOk;
+        }
+
+        private void HandleOnlineStatusChanged(NetworkStatus status)
+        {
+            if (_isMatchAborted) return;
+
+            if (status == NetworkStatus.Connected) _hasBeenConnected = true;
+
+            if (_connectionStatusOverlay != null)
+            {
+                _connectionStatusOverlay.ApplyStatus(status, _hasBeenConnected);
+            }
+
+            if (_hasBeenConnected && (status == NetworkStatus.Disconnected || status == NetworkStatus.Error))
+            {
+                AbortMatch("err_connection_lost", broadcast: false);
+            }
+        }
+
+        private void HandleAbortReceived(AbortReason reason)
+        {
+            if (_isMatchAborted) return;
+            string key = reason == AbortReason.Desync ? "err_desync_detected" : "err_connection_lost";
+            AbortMatch(key, broadcast: false);
+        }
+
+        private void HandlePeerDisconnectedAsHost(ulong _)
+        {
+            if (_isMatchAborted) return;
+            AbortMatch("err_connection_lost", broadcast: true, reason: AbortReason.PeerDrop);
+        }
+
+        private void HandleSyncStalling(int turnIndex)
+        {
+            if (_isMatchAborted) return;
+            if (_connectionStatusOverlay != null) _connectionStatusOverlay.Show("err_connection_unstable");
+        }
+
+        private void HandleDesyncDetected(int turnIndex)
+        {
+            Debug.LogError($"[GameController] Desync detected at turnIndex={turnIndex}. Aborting match.");
+            AbortMatch("err_desync_detected", broadcast: true, reason: AbortReason.Desync);
+        }
+
+        private void HandleSyncFailed(int turnIndex)
+        {
+            Debug.LogError($"[GameController] Hard sync timeout at turnIndex={turnIndex}. Aborting match.");
+            AbortMatch("err_connection_lost", broadcast: true, reason: AbortReason.PeerDrop);
+        }
+
+        // --- Match abort -------------------------------------------------------------------
+
+        private void AbortMatch(string locKey, bool broadcast, AbortReason reason = AbortReason.Unknown)
+        {
+            if (_isMatchAborted) return;
+            _isMatchAborted = true;
+
+            // Best-effort: tell other peers we're going away.
+            if (broadcast && _sessionDirector != null && _onlineTransport != null
+                && _onlineTransport.Status == NetworkStatus.Connected)
+            {
+                _sessionDirector.BroadcastAbort(reason);
+            }
+
+            // Detach inputs so no further commands are accepted, locally or remote.
+            if (_playerInputs != null)
+            {
+                foreach (var input in _playerInputs.Values) input?.SetActive(false);
+            }
+            if (_matchManager != null)
+            {
+                _matchManager.AttachInput(null);
+            }
+
+            // Stop coroutines to unfreeze the turn-transition state cleanly. Anything that was
+            // mid-animation will simply leave the UI in whatever state it had; the overlay covers
+            // it visually.
+            StopAllCoroutines();
+            SetUIInteractable(false);
+
+            if (_connectionStatusOverlay != null)
+            {
+                _connectionStatusOverlay.OnBackToMenuClicked -= HandleAbortBackToMenu;
+                _connectionStatusOverlay.OnBackToMenuClicked += HandleAbortBackToMenu;
+                _connectionStatusOverlay.ShowTerminal(locKey);
+            }
+
+            // Auto-return after a few seconds in case the user doesn't tap the button.
+            StartCoroutine(AutoReturnAfterAbort(4f));
+        }
+
+        private IEnumerator AutoReturnAfterAbort(float seconds)
+        {
+            float t = 0f;
+            while (t < seconds)
+            {
+                t += Time.unscaledDeltaTime;
+                yield return null;
+            }
+            HandleAbortBackToMenu();
+        }
+
+        private void HandleAbortBackToMenu()
+        {
+            // Stopping the gate also prevents stray "stalling" events from racing the scene unload.
+            if (_lockstepHashGate != null) _lockstepHashGate.Stop();
+
+            // Tear down the persistent transport so the next match can re-create it. The
+            // transport's own OnDisable runs nm.Shutdown(true) + LeaveAsync, which feeds into the
+            // static s_PreviousShutdownTask coordinator.
+            if (_onlineTransport is MonoBehaviour mb && mb != null)
+            {
+                Destroy(mb);
+            }
+
+            MatchData.ResetToOffline();
+            SceneManager.LoadScene("MainMenuScene");
         }
 
         private void BindUIEvents()
@@ -470,9 +594,6 @@ namespace DiceGame.Controllers
         private IEnumerator RollAnimationRoutine(DiceCup cup)
         {
             _isDiceRolling = true;
-            // #region agent log
-            AgentLog("pre-fix", "H1", "GameController.RollAnimationRoutine", "roll animation started", $"{{\"playerIsBot\":{_matchManager.CurrentPlayer.IsBot.ToString().ToLower()},\"rollsLeftNow\":{cup.RollsLeft}}}");
-            // #endregion
             UpdateMainActionUI();
 
             _scoreCardView.ClearAllPotentials();
@@ -482,7 +603,7 @@ namespace DiceGame.Controllers
 
             bool isLocalHuman = IsLocalHuman(_matchManager.CurrentPlayer);
             // Bots and remote peers both run a non-interactive quick reroll on the scoreboard.
-            // Phase 1 placeholder; richer remote-player visuals can come later.
+            // Pure presentation -- dice values are already deterministic before the animation.
             if (!isLocalHuman)
             {
                 yield return PlayBotScoreboardRollRoutine(cup);
@@ -499,17 +620,11 @@ namespace DiceGame.Controllers
             }
 
             SetScoreboardVisibility(false);
-            // #region agent log
-            AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "scoreboard hidden before dice lift", $"{{\"playerIsBot\":{_matchManager.CurrentPlayer.IsBot.ToString().ToLower()},\"animatorVisibleFlag\":{(_mainUIAnimator != null && _mainUIAnimator.GetBool("IsVisible")).ToString().ToLower()}}}");
-            // #endregion
 
             bool allDiceHeld = cup.Dice.All(die => die.IsHeld);
 
             if (!allDiceHeld)
             {
-                // #region agent log
-                AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "dice lift to y+200 started", $"{{\"playerIsBot\":{(!isLocalHuman).ToString().ToLower()},\"remainingRolls\":{cup.RollsLeft}}}");
-                // #endregion
                 List<Coroutine> slideRoutines = new List<Coroutine>();
                 List<DieView> diceToCollect = new List<DieView>();
 
@@ -524,9 +639,6 @@ namespace DiceGame.Controllers
                 }
 
                 foreach (var routine in slideRoutines) yield return routine;
-                // #region agent log
-                AgentLog("pre-fix-2", "H5", "GameController.RollAnimationRoutine", "dice lift to y+200 finished", $"{{\"playerIsBot\":{(!isLocalHuman).ToString().ToLower()},\"diceToCollectCount\":{diceToCollect.Count}}}");
-                // #endregion
                 yield return new WaitForSeconds(0.2f);
 
                 if (_diceCupView != null)
@@ -553,14 +665,8 @@ namespace DiceGame.Controllers
                         _diceCupView.EnableInteraction();
                         while (!shakeFinished) yield return null;
                     } else {
-                        // #region agent log
-                        AgentLog("pre-fix-2", "H6", "GameController.RollAnimationRoutine", "bot starts collecting and shaking", $"{{\"diceToCollectBefore\":{diceToCollect.Count}}}");
-                        // #endregion
                         foreach (var d in diceToCollect) d.SetVisibility(false);
                         yield return _diceCupView.AutoShakeRoutine();
-                        // #region agent log
-                        AgentLog("pre-fix-2", "H6", "GameController.RollAnimationRoutine", "bot finished auto shake", $"{{\"diceToCollectAfter\":{diceToCollect.Count}}}");
-                        // #endregion
                     }
 
                     _diceCupView.OnCupDragged -= onDrag;
@@ -578,6 +684,8 @@ namespace DiceGame.Controllers
                     Vector3 finalPos = GetValidScatterPosition(usedPositions);
                     usedPositions.Add(finalPos);
 
+                    // Presentation-only: scatter rotation uses Unity's global RNG, NOT the
+                    // deterministic dice RNG. Visuals can differ between peers; state cannot.
                     float randomRot = UnityEngine.Random.Range(0f, 360f);
                     _dieViews[i].UpdateView(cup.Dice[i].Value, false);
                     _dieViews[i].ScatterWorld(finalPos, randomRot);
@@ -598,6 +706,8 @@ namespace DiceGame.Controllers
                     if (!cup.Dice[i].IsHeld) _dieViews[i].SetVisibility(true);
                 }
 
+                // Presentation-only deterministic timer; state convergence already handled by
+                // NetworkPlayerInput.EnqueueRemoteAction (which buffers commands while inactive).
                 yield return new WaitForSeconds(2.0f);
 
                 List<Coroutine> returnRoutines = new List<Coroutine>();
@@ -611,9 +721,6 @@ namespace DiceGame.Controllers
 
             _isDiceRolling = false;
             _canStartRoll = true;
-            // #region agent log
-            AgentLog("pre-fix", "H1", "GameController.RollAnimationRoutine", "roll animation finished", $"{{\"playerIsBot\":{_matchManager.CurrentPlayer.IsBot.ToString().ToLower()},\"rollsLeftNow\":{cup.RollsLeft}}}");
-            // #endregion
             _matchManager.NotifyRollAnimationCompleted();
 
             SetScoreboardVisibility(true);
@@ -642,9 +749,6 @@ namespace DiceGame.Controllers
 
         private IEnumerator PlayBotScoreboardRollRoutine(DiceCup cup)
         {
-            // #region agent log
-            AgentLog("post-fix", "H8", "GameController.PlayBotScoreboardRollRoutine", "bot scoreboard roll animation started", $"{{\"rollsLeft\":{cup.RollsLeft}}}");
-            // #endregion
             SetScoreboardVisibility(true);
 
             for (int i = 0; i < cup.Dice.Count; i++)
@@ -665,6 +769,7 @@ namespace DiceGame.Controllers
                 {
                     if (!cup.Dice[i].IsHeld)
                     {
+                        // Presentation-only: face flicker uses Unity's global RNG (not dice RNG).
                         _dieViews[i].UpdateView(UnityEngine.Random.Range(1, 7), false);
                     }
                 }
@@ -680,9 +785,6 @@ namespace DiceGame.Controllers
                 }
             }
             yield return new WaitForSeconds(0.15f);
-            // #region agent log
-            AgentLog("post-fix", "H8", "GameController.PlayBotScoreboardRollRoutine", "bot scoreboard roll animation finished", $"{{\"rollsLeft\":{cup.RollsLeft}}}");
-            // #endregion
         }
 
         // ==========================================
@@ -751,9 +853,6 @@ namespace DiceGame.Controllers
                 SetUIInteractable(false);
                 if (_diceCupView != null) _diceCupView.DisableInteraction();
                 if (_skipBotButton != null) _skipBotButton.gameObject.SetActive(true);
-                // #region agent log
-                AgentLog("pre-fix", "H2", "GameController.StartVisualTurn", "bot turn ui state", $"{{\"skipButtonSetActive\":{(_skipBotButton != null).ToString().ToLower()},\"skipButtonActuallyActive\":{(_skipBotButton != null && _skipBotButton.gameObject.activeSelf).ToString().ToLower()}}}");
-                // #endregion
 
                 var botInput = _playerInputs[player] as BotPlayerInput;
                 botInput?.StartBotTurn(_matchManager.Cup, player.ScoreCard, _matchManager);
@@ -883,7 +982,10 @@ namespace DiceGame.Controllers
         private void HandleGameOver(List<Player> rankings)
         {
             SetUIInteractable(false);
-            
+
+            // Stop the gate so we don't fire stalling events during the game-over screen.
+            if (_lockstepHashGate != null) _lockstepHashGate.Stop();
+
             Player localPlayer = rankings.FirstOrDefault(IsLocalHuman);
             if (localPlayer != null)
             {
@@ -901,9 +1003,6 @@ namespace DiceGame.Controllers
         {
             if (_matchManager.CurrentPlayer.IsBot)
             {
-                // #region agent log
-                AgentLog("pre-fix", "H3", "GameController.HandleSkipBotClicked", "skip button clicked during bot turn", $"{{\"isDiceRolling\":{_isDiceRolling.ToString().ToLower()},\"rollsLeft\":{_matchManager.Cup.RollsLeft}}}");
-                // #endregion
                 var botInput = _playerInputs[_matchManager.CurrentPlayer] as BotPlayerInput;
                 botInput?.SkipBotTurn(_matchManager.Cup, _matchManager.CurrentPlayer.ScoreCard);
             }
@@ -941,13 +1040,11 @@ namespace DiceGame.Controllers
 
                     if (currentScore > currentHighScore && currentHighScore > 0)
                     {
-                        // Zur Erinnerung: Stelle sicher, dass "new_record" in deinem Lokalisierungs-CSV gepflegt ist!
                         _currentPlayerNameText.text = LocalizationService.Instance.GetText("new_record", currentScore);
                         _currentPlayerNameText.color = Color.green;
                     }
                     else
                     {
-                        // Zur Erinnerung: Stelle sicher, dass "high_score" in deinem Lokalisierungs-CSV gepflegt ist!
                         int displayScore = Mathf.Max(currentHighScore, currentScore);
                         _currentPlayerNameText.text = LocalizationService.Instance.GetText("high_score", displayScore);
                         _currentPlayerNameText.color = Color.yellow;
@@ -955,7 +1052,6 @@ namespace DiceGame.Controllers
                 }
                 else
                 {
-                    // Zur Erinnerung: Stelle sicher, dass "turn_indicator" in deinem Lokalisierungs-CSV gepflegt ist!
                     _currentPlayerNameText.text = LocalizationService.Instance.GetText("turn_indicator", player.Name);
                     _currentPlayerNameText.color = player.IsBot ? Color.red : Color.white;
                 }
@@ -1014,17 +1110,69 @@ namespace DiceGame.Controllers
             if (_settingsPanel != null) _settingsPanel.SetActive(false);
         }
 
-        public void GoToMainMenu() { SceneManager.LoadScene("MainMenuScene"); }
-        private void HandleRestart() { SceneManager.LoadScene(SceneManager.GetActiveScene().name); }
-        private void HandleMainMenu() { SceneManager.LoadScene("MainMenuScene"); }
+        public void GoToMainMenu()
+        {
+            // Calling this in the middle of an online match would orphan the transport, so the
+            // safe path is to drive the explicit abort flow when we're online.
+            if (MatchData.IsOnline)
+            {
+                AbortMatch("err_connection_lost", broadcast: true, reason: AbortReason.UserQuit);
+                return;
+            }
+            SceneManager.LoadScene("MainMenuScene");
+        }
+
+        private void HandleRestart()
+        {
+            // Restart only makes sense in offline mode; online matches must be re-lobbied.
+            if (MatchData.IsOnline)
+            {
+                AbortMatch("err_connection_lost", broadcast: true, reason: AbortReason.UserQuit);
+                return;
+            }
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        private void HandleMainMenu()
+        {
+            if (MatchData.IsOnline)
+            {
+                AbortMatch("err_connection_lost", broadcast: true, reason: AbortReason.UserQuit);
+                return;
+            }
+            SceneManager.LoadScene("MainMenuScene");
+        }
 
         private void OnDestroy()
         {
             if (_mainActionButton != null) _mainActionButton.onClick.RemoveListener(HandleMainAction);
             LocalizationService.Instance.OnLanguageChanged -= HandleLanguageChanged;
             if (_matchManager != null) _matchManager.OnTurnEnded -= HandleTurnEnded;
-            if (_sessionDirector != null) _sessionDirector.OnSeedReceived -= HandleSeedReceived;
-
+            if (_sessionDirector != null)
+            {
+                _sessionDirector.OnSeedReceived -= HandleSeedReceived;
+                _sessionDirector.OnStatusChanged -= HandleOnlineStatusChanged;
+                _sessionDirector.OnAbortReceived -= HandleAbortReceived;
+                if (_lockstepHashGate != null)
+                {
+                    _sessionDirector.OnStateHashReceived -= _lockstepHashGate.HandleStateHash;
+                    _sessionDirector.OnSyncOkReceived -= _lockstepHashGate.HandleSyncOk;
+                }
+            }
+            if (_lockstepHashGate != null)
+            {
+                _lockstepHashGate.OnSyncStalling -= HandleSyncStalling;
+                _lockstepHashGate.OnDesyncDetected -= HandleDesyncDetected;
+                _lockstepHashGate.OnSyncFailed -= HandleSyncFailed;
+            }
+            if (_onlineTransport is UgsNetworkTransport ugs)
+            {
+                ugs.OnPeerDisconnected -= HandlePeerDisconnectedAsHost;
+            }
+            if (_connectionStatusOverlay != null)
+            {
+                _connectionStatusOverlay.OnBackToMenuClicked -= HandleAbortBackToMenu;
+            }
             if (_diceCupView != null) _diceCupView.OnCupTouched -= HandleCupDragToRoll;
         }
 
@@ -1052,13 +1200,38 @@ namespace DiceGame.Controllers
 
         private IEnumerator TurnTransitionRoutine(Player playerWhoJustFinished)
         {
+            // Online players have IsBot=false so this is always 0.8s online; the longer 1.5s
+            // bot-pause only applies offline. Both branches are deterministic timers.
             float delay = playerWhoJustFinished.IsBot ? 1.5f : 0.8f;
             yield return new WaitForSeconds(delay);
 
             ResetAllDiceVisuals();
             yield return new WaitForSeconds(0.2f);
 
-            if (_matchManager != null) _matchManager.AdvanceToNextTurn();
+            if (_matchManager == null) yield break;
+
+            // Online mode: the lockstep hash gate must clear this turnIndex (i.e. host has seen
+            // matching hashes from every peer and broadcast SyncOk) before we may rotate the wheel.
+            // Net round-trip is typically masked by the 0.8s + 0.2s above; if not, the
+            // ConnectionStatusOverlay is already showing err_connection_unstable / msg_connecting.
+            if (MatchData.IsOnline && _lockstepHashGate != null)
+            {
+                int currentTurnIndex = _matchManager.TurnIndex;
+                while (!_lockstepHashGate.IsCleared(currentTurnIndex)
+                       && !_lockstepHashGate.HasFailed
+                       && !_isMatchAborted)
+                {
+                    yield return null;
+                }
+                if (_lockstepHashGate.HasFailed || _isMatchAborted)
+                {
+                    // The gate already fired OnSyncFailed / OnDesyncDetected which triggered
+                    // AbortMatch via our handler; just exit cleanly.
+                    yield break;
+                }
+            }
+
+            _matchManager.AdvanceToNextTurn();
             _isTransitioningTurn = false;
         }
 

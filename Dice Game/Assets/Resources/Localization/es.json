@@ -76,5 +76,18 @@
   "btn_online_play": "Juego en línea",
   "btn_private_lobby": "Sala privada",
   "title_code": "Código:",
-  "title_online": "Online"
+  "title_online": "Online",
+  "lobby_title": "Sala en línea",
+  "lobby_join_code": "Código: {0}",
+  "lobby_player_slot_empty": "Vacío",
+  "lobby_waiting_host": "Esperando al anfitrión...",
+  "lobby_host_pending": "Anfitrión",
+  "lobby_start_button": "Iniciar partida",
+  "err_connection_unstable": "Conexión inestable...",
+  "err_desync_detected": "Desincronización detectada. Partida cancelada.",
+  "btn_join_game": "Unirse",
+  "btn_host_game": "Crear partida",
+  "input_enter_name": "Introduce nombre",
+  "input_enter_code": "Introduce código",
+  "btn_back": "Atrás"
 }

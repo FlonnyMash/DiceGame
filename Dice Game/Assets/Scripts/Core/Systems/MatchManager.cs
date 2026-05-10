@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.IO;
 using DiceGame.Core.Models;
 using DiceGame.Core.Rules;
 using DiceGame.Core.Interfaces;
@@ -13,8 +12,13 @@ namespace DiceGame.Core.Systems
         public DiceCup Cup { get; private set; }
         public List<Player> Players { get; private set; }
         public int CurrentPlayerIndex { get; private set; }
-        
+
         public Player CurrentPlayer => Players[CurrentPlayerIndex];
+
+        // Monotonically increasing per-turn counter, used by the lockstep hash exchange to tag
+        // which turn each StateHash packet refers to. Starts at 0 for the first turn (set in
+        // StartGame); incremented every time AdvanceToNextTurn rolls the wheel.
+        public int TurnIndex { get; private set; }
 
         // --- EVENTS FÜR DIE UI ---
         // Die UI abonniert diese Events, um Grafiken und Animationen zu steuern
@@ -29,17 +33,6 @@ namespace DiceGame.Core.Systems
         private IPlayerInput _currentPlayerInput;
         private bool _isRollInProgress;
         public bool IsRollInProgress => _isRollInProgress;
-        
-        // #region agent log
-        private static void AgentLog(string runId, string hypothesisId, string location, string message, string dataJson)
-        {
-            try
-            {
-                File.AppendAllText("debug-f7e117.log", $"{{\"sessionId\":\"f7e117\",\"runId\":\"{runId}\",\"hypothesisId\":\"{hypothesisId}\",\"location\":\"{location}\",\"message\":\"{message}\",\"data\":{dataJson},\"timestamp\":{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}}}\n");
-            }
-            catch { }
-        }
-        // #endregion
 
         public MatchManager(List<Player> players, int diceSeed = 0)
         {
@@ -50,6 +43,7 @@ namespace DiceGame.Core.Systems
         public void StartGame()
         {
             CurrentPlayerIndex = 0;
+            TurnIndex = 0;
             StartTurn();
         }
 
@@ -73,7 +67,7 @@ namespace DiceGame.Core.Systems
             }
 
             _currentPlayerInput = input;
-            
+
             // Neuen Input anklemmen
             if (_currentPlayerInput != null)
             {
@@ -89,23 +83,11 @@ namespace DiceGame.Core.Systems
 
         private void HandleRollRequested()
         {
-            if (_isRollInProgress)
-            {
-                // #region agent log
-                AgentLog("post-fix", "H1", "MatchManager.HandleRollRequested", "roll ignored because animation still running", $"{{\"currentPlayer\":\"{CurrentPlayer.Name}\",\"rollsLeft\":{Cup.RollsLeft}}}");
-                // #endregion
-                return;
-            }
+            if (_isRollInProgress) return;
 
-            // #region agent log
-            AgentLog("pre-fix", "H1", "MatchManager.HandleRollRequested", "roll request received", $"{{\"currentPlayer\":\"{CurrentPlayer.Name}\",\"isBot\":{CurrentPlayer.IsBot.ToString().ToLower()},\"rollsLeftBefore\":{Cup.RollsLeft}}}");
-            // #endregion
             if (Cup.Roll())
             {
                 _isRollInProgress = true;
-                // #region agent log
-                AgentLog("pre-fix", "H1", "MatchManager.HandleRollRequested", "roll executed", $"{{\"rollsLeftAfter\":{Cup.RollsLeft}}}");
-                // #endregion
                 OnDiceRolled?.Invoke(Cup);
             }
         }
@@ -113,9 +95,6 @@ namespace DiceGame.Core.Systems
         public void NotifyRollAnimationCompleted()
         {
             _isRollInProgress = false;
-            // #region agent log
-            AgentLog("post-fix", "H1", "MatchManager.NotifyRollAnimationCompleted", "roll animation acknowledged complete", $"{{\"currentPlayer\":\"{CurrentPlayer.Name}\",\"rollsLeft\":{Cup.RollsLeft}}}");
-            // #endregion
         }
 
         private void HandleToggleHoldRequested(int dieIndex)
@@ -138,13 +117,10 @@ namespace DiceGame.Core.Systems
 
         private void HandleCategoryRequested(ScoreCategory category)
         {
-            // #region agent log
-            AgentLog("pre-fix", "H4", "MatchManager.HandleCategoryRequested", "category request received", $"{{\"category\":{(int)category},\"rollsLeft\":{Cup.RollsLeft}}}");
-            // #endregion
             if (Cup.RollsLeft == DiceCup.MaxRolls) return; // Ohne Wurf keine Punkte!
 
             int points = ScoreCalculator.CalculateScore(Cup.Dice, category);
-            
+
             // SetScore gibt 'true' zurück, wenn das Feld noch leer war
             if (CurrentPlayer.ScoreCard.SetScore(category, points))
             {
@@ -171,9 +147,13 @@ namespace DiceGame.Core.Systems
 
         // NEU: Diese Methode ist public. Der GameController ruft sie auf, 
         // sobald seine Pause (Coroutine) und die Animationen fertig sind!
+        // In online mode this is gated by LockstepHashGate, which only releases the call after
+        // every peer's StateHash for this TurnIndex has been received and matched (host side) or
+        // after SyncOk has arrived (guest side).
         public void AdvanceToNextTurn()
         {
             CurrentPlayerIndex = (CurrentPlayerIndex + 1) % Players.Count;
+            TurnIndex++;
             StartTurn();
         }
     }

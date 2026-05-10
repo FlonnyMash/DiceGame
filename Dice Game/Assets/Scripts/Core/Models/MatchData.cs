@@ -16,13 +16,9 @@ namespace DiceGame.Core.Models
         // One flag per entry in PlayerNames: true if that seat is owned by a remote peer.
         public static List<bool> IsRemoteFlags = new List<bool>();
 
-        // Phase 2B: production transport selector. When true and IsOnline is true, GameController
-        // creates a UgsNetworkTransport (Sessions + Relay + NGO byte pipe). When false, the legacy
-        // LocalLoopbackTransport editor smoke-test path is used.
-        public static bool UseRelay = false;
-
-        // Host: populated after CreateSessionAsync succeeds (display in UI / share with peers).
-        // Client: filled in by the menu before scene load so UgsNetworkTransport can JoinSessionByCodeAsync.
+        // Phase 2C: production online flow always uses Unity Sessions + Relay. The lobby populates
+        // this code so GameController can re-display it (e.g. on a "share with peers" overlay if
+        // we ever bring back an in-match share button).
         public static string RelayJoinCode = null;
 
         public static void ResetToOffline()
@@ -31,7 +27,6 @@ namespace DiceGame.Core.Models
             IsHost = true;
             LocalPlayerId = 0;
             IsRemoteFlags = new List<bool>();
-            UseRelay = false;
             RelayJoinCode = null;
         }
     }
