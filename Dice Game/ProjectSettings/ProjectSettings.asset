@@ -167,7 +167,7 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    Android: com.UnityTechnologies.com.unity.template.urpblank
+    Android: com.MashedGames.Dicey
     Standalone: com.Unity-Technologies.com.unity.template.urp-blank
     iPhone: com.MashedGames.DicePoker
   buildNumber:
@@ -272,8 +272,8 @@ PlayerSettings:
   AndroidAllowedArchitectures: -13
   AndroidSplashScreenScale: 0
   androidSplashScreen: {fileID: 0}
-  AndroidKeystoreName: 
-  AndroidKeyaliasName: 
+  AndroidKeystoreName: G:/GameDev/Project Keystore/DicePoker/user.keystore
+  AndroidKeyaliasName: dice poker
   AndroidEnableArmv9SecurityFeatures: 0
   AndroidEnableArm64MTE: 0
   AndroidBuildApkPerCpuArchitecture: 0
@@ -285,14 +285,14 @@ PlayerSettings:
   AndroidEnableTango: 0
   androidEnableBanner: 1
   androidUseLowAccuracyLocation: 0
-  androidUseCustomKeystore: 0
+  androidUseCustomKeystore: 1
   m_AndroidBanners:
   - width: 320
     height: 180
     banner: {fileID: 0}
   androidGamepadSupportLevel: 0
   AndroidMinifyRelease: 0
-  AndroidMinifyDebug: 1
+  AndroidMinifyDebug: 0
   AndroidValidateAppBundleSize: 1
   AndroidAppBundleSizeToValidate: 150
   AndroidReportGooglePlayAppDependencies: 1
