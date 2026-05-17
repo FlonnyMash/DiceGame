@@ -8,6 +8,25 @@ using DiceGame.Core.Models;
 
 namespace DiceGame.UI.MainMenu
 {
+    [System.Serializable]
+    public class LocalPlayerNameSlot
+    {
+        [Tooltip("Root shown/hidden for this slot (label, background, input field, etc.).")]
+        [SerializeField] private GameObject _container;
+        [SerializeField] private TMP_InputField _inputField;
+
+        public GameObject Container => _container;
+        public TMP_InputField InputField => _inputField;
+
+        public void SetActive(bool active)
+        {
+            if (_container != null)
+                _container.SetActive(active);
+            else if (_inputField != null)
+                _inputField.gameObject.SetActive(active);
+        }
+    }
+
     public class MainMenu : MonoBehaviour
     {
         [Header("UI Sliding")]
@@ -34,7 +53,7 @@ namespace DiceGame.UI.MainMenu
         [SerializeField] private Button _backToMainButton;
 
         [Header("Multiplayer Setup (Lokal)")]
-        [SerializeField] private TMP_InputField[] _playerNameInputs; 
+        [SerializeField] private LocalPlayerNameSlot[] _playerNameSlots;
         [SerializeField] private Button _addPlayerButton;    
         [SerializeField] private Button _removePlayerButton; 
         [SerializeField] private TextMeshProUGUI _playerCountText;
@@ -102,9 +121,10 @@ namespace DiceGame.UI.MainMenu
             if (_removePlayerButton) _removePlayerButton.onClick.AddListener(RemovePlayer);
             if (_backToTypeMenuButton) _backToTypeMenuButton.onClick.AddListener(() => MoveTo(_mainMenuX));
 
-            foreach (var input in _playerNameInputs)
+            foreach (var slot in _playerNameSlots)
             {
-                input.onValueChanged.AddListener(_ => ValidateInputs());
+                if (slot?.InputField != null)
+                    slot.InputField.onValueChanged.AddListener(_ => ValidateInputs());
             }
 
             // Initiale UI-Aktualisierung
@@ -180,34 +200,31 @@ namespace DiceGame.UI.MainMenu
 
         private void UpdatePlayerCountUI()
         {
-            for (int i = 0; i < _playerNameInputs.Length; i++)
+            for (int i = 0; i < _playerNameSlots.Length; i++)
             {
-                if (_playerNameInputs[i] == null) continue;
+                var slot = _playerNameSlots[i];
+                if (slot?.InputField == null) continue;
+
+                var input = slot.InputField;
 
                 // Wenn _currentPlayerCount == 1 ist, brauchen wir 2 Felder (Spieler + Bot).
                 // Ansonsten brauchen wir exakt so viele Felder wie _currentPlayerCount.
                 bool shouldBeActive = (_currentPlayerCount == 1) ? (i < 2) : (i < _currentPlayerCount);
-                _playerNameInputs[i].gameObject.SetActive(shouldBeActive);
+                slot.SetActive(shouldBeActive);
 
                 // Spezifische Logik für das zweite Eingabefeld (Index 1)
                 if (i == 1)
                 {
                     if (_currentPlayerCount == 1)
                     {
-                        // Bot-Modus einrichten
-                        _playerNameInputs[i].text = "Bot";
-                        _playerNameInputs[i].interactable = false;
+                        input.text = "Bot";
+                        input.interactable = false;
                     }
                     else
                     {
-                        // Multiplayer-Modus: Feld entsperren
-                        _playerNameInputs[i].interactable = true;
-                        
-                        // Bot-Text entfernen, falls noch vorhanden
-                        if (_playerNameInputs[i].text == "Bot")
-                        {
-                            _playerNameInputs[i].text = string.Empty;
-                        }
+                        input.interactable = true;
+                        if (input.text == "Bot")
+                            input.text = string.Empty;
                     }
                 }
             }
@@ -232,7 +249,8 @@ namespace DiceGame.UI.MainMenu
             // wird das deaktivierte Bot-Feld hier richtigerweise ignoriert.
             for (int i = 0; i < _currentPlayerCount; i++)
             {
-                if (_playerNameInputs[i] != null && string.IsNullOrWhiteSpace(_playerNameInputs[i].text))
+                var input = _playerNameSlots[i]?.InputField;
+                if (input != null && string.IsNullOrWhiteSpace(input.text))
                 {
                     allNamesEntered = false;
                     break;
@@ -258,7 +276,7 @@ namespace DiceGame.UI.MainMenu
             List<string> names = new List<string>();
             for (int i = 0; i < _currentPlayerCount; i++)
             {
-                names.Add(_playerNameInputs[i].text.Trim());
+                names.Add(_playerNameSlots[i].InputField.text.Trim());
             }
 
             // Die if-Abfrage hier ist perfekt, da das Bot-Feld in der UI nicht zu 

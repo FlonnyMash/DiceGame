@@ -13711,7 +13711,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 98}
-  m_SizeDelta: {x: 294.3, y: 192.1}
+  m_SizeDelta: {x: 225, y: 150}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1404868771
 CanvasRenderer:
@@ -14752,7 +14752,15 @@ MonoBehaviour:
   _onlineButton: {fileID: 647128980}
   _privateOnlineButton: {fileID: 236125820}
   _backToMainButton: {fileID: 85325098}
-  _playerNameInputs: []
+  _playerNameSlots:
+  - _container: {fileID: 248522897}
+    _inputField: {fileID: 1319167726}
+  - _container: {fileID: 71463963}
+    _inputField: {fileID: 1187527460}
+  - _container: {fileID: 1606262591}
+    _inputField: {fileID: 551024231}
+  - _container: {fileID: 978738277}
+    _inputField: {fileID: 1658902774}
   _addPlayerButton: {fileID: 1429649162}
   _removePlayerButton: {fileID: 1781606612}
   _playerCountText: {fileID: 145830173}
