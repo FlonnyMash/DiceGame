@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Dice Poker</title>
+    <style>
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        background-color: #1a1a1a;
+        overflow: hidden;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: stretch;
+      }
+
+      #app-root {
+        display: none;
+        flex: 1;
+        flex-direction: column;
+        width: 100%;
+        min-height: 0;
+        min-height: 100dvh;
+      }
+
+      #app-root.visible {
+        display: flex;
+      }
+
+      #game-shell {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #unity-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+      }
+
+      #game-controls {
+        flex-shrink: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 12px 16px;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        background: #141414;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      /* Mobile / iOS: browsers block requestFullscreen(); this is the best fallback. */
+      html.pseudo-fullscreen,
+      html.pseudo-fullscreen body {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        overflow: hidden;
+      }
+
+      html.pseudo-fullscreen #app-root {
+        position: fixed;
+        inset: 0;
+        height: 100dvh;
+        padding:
+          env(safe-area-inset-top)
+          env(safe-area-inset-right)
+          0
+          env(safe-area-inset-left);
+      }
+
+      html.pseudo-fullscreen #unity-canvas {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100%;
+        max-height: 100%;
+      }
+
+      #loading-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        background: radial-gradient(ellipse at center, #2a2a2a 0%, #1a1a1a 70%);
+        color: #f0f0f0;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+      }
+
+      #loading-screen.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      .loading-title {
+        font-size: clamp(1.75rem, 4vw, 2.5rem);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin: 0;
+      }
+
+      .loading-spinner {
+        width: 56px;
+        height: 56px;
+        border: 4px solid rgba(255, 255, 255, 0.15);
+        border-top-color: #e8b84a;
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .loading-progress-wrap {
+        width: min(360px, 80vw);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .loading-progress-track {
+        width: 100%;
+        height: 10px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .loading-progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #c9922e, #e8b84a);
+        border-radius: 999px;
+        transition: width 0.15s ease-out;
+      }
+
+      .loading-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.65);
+      }
+
+      #loading-status {
+        margin: 0;
+      }
+
+      #loading-percent {
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        color: #e8b84a;
+      }
+
+      #fullscreen-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        padding: 0;
+        border: 1px solid rgba(232, 184, 74, 0.45);
+        border-radius: 10px;
+        background: rgba(26, 26, 26, 0.95);
+        color: #e8b84a;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      }
+
+      #fullscreen-btn:hover {
+        background: rgba(42, 42, 42, 0.95);
+        border-color: #e8b84a;
+        color: #f5d078;
+      }
+
+      #fullscreen-btn svg {
+        width: 22px;
+        height: 22px;
+        pointer-events: none;
+      }
+
+      #fullscreen-btn .icon-exit {
+        display: none;
+      }
+
+      #fullscreen-btn.is-active .icon-enter {
+        display: none;
+      }
+
+      #fullscreen-btn.is-active .icon-exit {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading-screen">
+      <p class="loading-title">Dice Poker</p>
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <div class="loading-progress-wrap">
+        <div class="loading-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="loading-progress-fill" class="loading-progress-fill"></div>
+        </div>
+        <div class="loading-meta">
+          <p id="loading-status">Preparing game...</p>
+          <p id="loading-percent">0%</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="app-root">
+      <div id="game-shell">
+        <canvas id="unity-canvas" tabindex="-1"></canvas>
+      </div>
+      <div id="game-controls">
+        <button id="fullscreen-btn" type="button" aria-label="Enter fullscreen" title="Fullscreen">
+          <svg class="icon-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+          <svg class="icon-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <script>
+      var canvas = document.querySelector("#unity-canvas");
+      var fullscreenBtn = document.querySelector("#fullscreen-btn");
+
+      var isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
+      var isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent)
+        || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      /* iPhone Safari does not support requestFullscreen(); iPad support is inconsistent. */
+      var usePseudoFullscreenOnly = isIOS;
+
+      function notifyCanvasResize() {
+        window.dispatchEvent(new Event("resize"));
+        if (window.visualViewport) {
+          window.dispatchEvent(new Event("orientationchange"));
+        }
+      }
+
+      function minimizeMobileBrowserChrome() {
+        window.scrollTo(0, 1);
+        setTimeout(function () { window.scrollTo(0, 0); }, 50);
+      }
+
+      function getFullscreenElement() {
+        return document.fullscreenElement
+          || document.webkitFullscreenElement
+          || document.mozFullScreenElement
+          || document.msFullscreenElement;
+      }
+
+      function tryNativeFullscreen(target) {
+        var request = target.requestFullscreen
+          || target.webkitRequestFullscreen
+          || target.mozRequestFullScreen
+          || target.msRequestFullscreen;
+        if (!request) {
+          return Promise.reject(new Error("Native fullscreen API unavailable."));
+        }
+        return Promise.resolve(request.call(target));
+      }
+
+      function requestNativeFullscreen() {
+        return tryNativeFullscreen(document.documentElement)
+          .catch(function () { return tryNativeFullscreen(canvas); });
+      }
+
+      function exitNativeFullscreen() {
+        var exit = document.exitFullscreen
+          || document.webkitExitFullscreen
+          || document.mozCancelFullScreen
+          || document.msExitFullscreen;
+        if (!exit || !getFullscreenElement()) {
+          return Promise.resolve();
+        }
+        return Promise.resolve(exit.call(document));
+      }
+
+      function isPseudoFullscreenActive() {
+        return document.documentElement.classList.contains("pseudo-fullscreen");
+      }
+
+      function enterPseudoFullscreen() {
+        document.documentElement.classList.add("pseudo-fullscreen");
+        minimizeMobileBrowserChrome();
+        notifyCanvasResize();
+        return Promise.resolve();
+      }
+
+      function exitPseudoFullscreen() {
+        document.documentElement.classList.remove("pseudo-fullscreen");
+        notifyCanvasResize();
+        return Promise.resolve();
+      }
+
+      function isFullscreenActive() {
+        return !!getFullscreenElement() || isPseudoFullscreenActive();
+      }
+
+      function enterFullscreen() {
+        if (isFullscreenActive()) {
+          return Promise.resolve();
+        }
+
+        if (usePseudoFullscreenOnly) {
+          return enterPseudoFullscreen();
+        }
+
+        return requestNativeFullscreen()
+          .then(minimizeMobileBrowserChrome)
+          .catch(function () { return enterPseudoFullscreen(); });
+      }
+
+      function exitAnyFullscreen() {
+        if (getFullscreenElement()) {
+          return exitNativeFullscreen().then(notifyCanvasResize);
+        }
+        if (isPseudoFullscreenActive()) {
+          return exitPseudoFullscreen();
+        }
+        return Promise.resolve();
+      }
+
+      function updateFullscreenButton() {
+        var active = isFullscreenActive();
+        fullscreenBtn.classList.toggle("is-active", active);
+        fullscreenBtn.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
+        fullscreenBtn.setAttribute("title", active ? "Exit fullscreen" : "Fullscreen");
+      }
+
+      window.dicePokerFullscreen = {
+        enter: enterFullscreen,
+        toggle: function () {
+          if (isFullscreenActive()) {
+            return exitAnyFullscreen();
+          }
+          return enterFullscreen();
+        },
+        isActive: isFullscreenActive,
+        usesPseudoFullscreen: function () { return usePseudoFullscreenOnly || isPseudoFullscreenActive(); }
+      };
+
+      fullscreenBtn.addEventListener("click", function () {
+        window.dicePokerFullscreen.toggle()
+          .then(updateFullscreenButton)
+          .catch(function (err) { console.warn(err); });
+      });
+
+      document.addEventListener("fullscreenchange", function () {
+        updateFullscreenButton();
+        notifyCanvasResize();
+      });
+      document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
+      window.addEventListener("orientationchange", function () {
+        if (isPseudoFullscreenActive()) {
+          minimizeMobileBrowserChrome();
+        }
+        notifyCanvasResize();
+      });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", notifyCanvasResize);
+      }
+      updateFullscreenButton();
+
+      var appRoot = document.querySelector("#app-root");
+
+      function showFullscreenControls() {
+        appRoot.classList.add("visible");
+      }
+      var loadingScreen = document.querySelector("#loading-screen");
+      var progressFill = document.querySelector("#loading-progress-fill");
+      var progressBar = document.querySelector(".loading-progress-track");
+      var loadingStatus = document.querySelector("#loading-status");
+      var loadingPercent = document.querySelector("#loading-percent");
+
+      function setLoadingProgress(progress) {
+        var percent = Math.round(progress * 100);
+        progressFill.style.width = percent + "%";
+        progressBar.setAttribute("aria-valuenow", percent);
+        loadingPercent.textContent = percent + "%";
+
+        if (progress < 0.2) {
+          loadingStatus.textContent = "Downloading game data...";
+        } else if (progress < 0.6) {
+          loadingStatus.textContent = "Loading engine...";
+        } else if (progress < 0.95) {
+          loadingStatus.textContent = "Starting up...";
+        } else {
+          loadingStatus.textContent = "Almost ready...";
+        }
+      }
+
+      function hideLoadingScreen() {
+        loadingScreen.classList.add("hidden");
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
+      var config = {
+        dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+        frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+        codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "{{{ COMPANY_NAME }}}",
+        productName: "{{{ PRODUCT_NAME }}}",
+        productVersion: "{{{ PRODUCT_VERSION }}}",
+      };
+
+      setLoadingProgress(0);
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        loadingStatus.textContent = "Initializing...";
+        createUnityInstance(canvas, config, (progress) => {
+          setLoadingProgress(progress);
+        }).then(() => {
+          setLoadingProgress(1);
+          hideLoadingScreen();
+          showFullscreenControls();
+        }).catch((message) => {
+          loadingStatus.textContent = "Failed to load.";
+          alert(message);
+        });
+      };
+      script.onerror = () => {
+        loadingStatus.textContent = "Failed to download loader.";
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
