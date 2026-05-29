@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -7,8 +7,20 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <title>Dice Poker</title>
+    <!-- dice-poker-template-v7 -->
+    <link rel="preload" href="Build/{{{ LOADER_FILENAME }}}" as="script">
     <style>
-      * { box-sizing: border-box; }
+      *, *::before, *::after { box-sizing: border-box; }
+
+      :root {
+        --design-w: 1080;
+        --design-h: 720;
+        --design-aspect: calc(var(--design-w) / var(--design-h));
+        --bar-height: 64px;
+        --accent: #e8b84a;
+        --bg: #1a1a1a;
+        --bar-bg: #121212;
+      }
 
       html, body {
         margin: 0;
@@ -16,451 +28,407 @@
         width: 100%;
         height: 100%;
         height: 100dvh;
-        background-color: #1a1a1a;
         overflow: hidden;
-        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: var(--bg);
+        font-family: system-ui, "Segoe UI", -apple-system, sans-serif;
         -webkit-touch-callout: none;
         -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
       }
 
-      body {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        justify-content: stretch;
-      }
-
-      #app-root {
-        display: none;
-        flex: 1;
-        flex-direction: column;
+      #player {
+        display: grid;
+        grid-template-rows: 1fr var(--bar-height);
         width: 100%;
-        min-height: 0;
-        min-height: 100dvh;
+        height: 100dvh;
+        max-height: 100dvh;
       }
 
-      #app-root.visible {
-        display: flex;
-      }
-
-      #game-shell {
+      #stage {
         position: relative;
-        flex: 1;
         min-height: 0;
-        width: 100%;
         display: flex;
-        justify-content: center;
         align-items: center;
+        justify-content: center;
+        background: var(--bg);
+        overflow: hidden;
       }
 
       #unity-canvas {
-        width: 100%;
-        height: 100%;
         display: block;
+        max-width: 100%;
+        max-height: 100%;
         touch-action: none;
+        outline: none;
       }
 
-      #game-controls {
-        flex-shrink: 0;
+      #toolbar {
         display: flex;
-        justify-content: center;
         align-items: center;
-        padding: 12px 16px;
-        padding-bottom: max(12px, env(safe-area-inset-bottom));
-        background: #141414;
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        justify-content: center;
+        min-height: var(--bar-height);
+        padding: 8px 16px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        background: var(--bar-bg);
+        border-top: 1px solid rgba(232, 184, 74, 0.3);
       }
 
-      /* Mobile / iOS: browsers block requestFullscreen(); this is the best fallback. */
-      html.pseudo-fullscreen,
-      html.pseudo-fullscreen body {
+      #toolbar[hidden] {
+        display: none;
+      }
+
+      #fs-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 48px;
+        min-height: 48px;
+        padding: 0;
+        border: 1px solid rgba(232, 184, 74, 0.5);
+        border-radius: 12px;
+        background: rgba(30, 30, 30, 0.95);
+        color: var(--accent);
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      #fs-toggle:active {
+        background: rgba(50, 50, 50, 0.95);
+      }
+
+      #fs-toggle svg {
+        width: 24px;
+        height: 24px;
+        display: block;
+        pointer-events: none;
+      }
+
+      /* iOS / fallback: viewport-filling layout without native Fullscreen API */
+      html.player-expanded,
+      html.player-expanded body {
         position: fixed;
         inset: 0;
         width: 100%;
         height: 100%;
-        height: 100dvh;
         overflow: hidden;
       }
 
-      html.pseudo-fullscreen #app-root {
+      html.player-expanded #player {
         position: fixed;
         inset: 0;
         height: 100dvh;
         padding:
-          env(safe-area-inset-top)
-          env(safe-area-inset-right)
+          env(safe-area-inset-top, 0px)
+          env(safe-area-inset-right, 0px)
           0
-          env(safe-area-inset-left);
+          env(safe-area-inset-left, 0px);
       }
 
-      html.pseudo-fullscreen #unity-canvas {
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100%;
-        max-height: 100%;
+      html.player-expanded #toolbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 20;
+        border-top: none;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+        padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
       }
 
-      #loading-screen {
+      #loading {
         position: fixed;
         inset: 0;
-        z-index: 10;
+        z-index: 100;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 28px;
-        background: radial-gradient(ellipse at center, #2a2a2a 0%, #1a1a1a 70%);
+        gap: 24px;
+        background: radial-gradient(ellipse at center, #2a2a2a 0%, var(--bg) 70%);
         color: #f0f0f0;
-        transition: opacity 0.4s ease, visibility 0.4s ease;
+        transition: opacity 0.35s ease, visibility 0.35s ease;
       }
 
-      #loading-screen.hidden {
+      #loading.done {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
       }
 
-      .loading-title {
-        font-size: clamp(1.75rem, 4vw, 2.5rem);
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+      #loading h1 {
         margin: 0;
+        font-size: clamp(1.5rem, 5vw, 2.25rem);
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
       }
 
-      .loading-spinner {
-        width: 56px;
-        height: 56px;
-        border: 4px solid rgba(255, 255, 255, 0.15);
-        border-top-color: #e8b84a;
-        border-radius: 50%;
-        animation: spin 0.9s linear infinite;
-      }
-
-      @keyframes spin {
-        to { transform: rotate(360deg); }
-      }
-
-      .loading-progress-wrap {
-        width: min(360px, 80vw);
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .loading-progress-track {
-        width: 100%;
-        height: 10px;
-        background: rgba(255, 255, 255, 0.1);
+      #loading-bar {
+        width: min(320px, 85vw);
+        height: 8px;
         border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
         overflow: hidden;
       }
 
-      .loading-progress-fill {
+      #loading-fill {
         height: 100%;
         width: 0%;
-        background: linear-gradient(90deg, #c9922e, #e8b84a);
+        background: linear-gradient(90deg, #c9922e, var(--accent));
         border-radius: 999px;
-        transition: width 0.15s ease-out;
+        transition: width 0.12s ease-out;
       }
 
-      .loading-meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.875rem;
-        color: rgba(255, 255, 255, 0.65);
-      }
-
-      #loading-status {
+      #loading-label {
         margin: 0;
-      }
-
-      #loading-percent {
-        margin: 0;
-        font-variant-numeric: tabular-nums;
-        font-weight: 600;
-        color: #e8b84a;
-      }
-
-      #fullscreen-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 48px;
-        height: 48px;
-        padding: 0;
-        border: 1px solid rgba(232, 184, 74, 0.45);
-        border-radius: 10px;
-        background: rgba(26, 26, 26, 0.95);
-        color: #e8b84a;
-        cursor: pointer;
-        transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-      }
-
-      #fullscreen-btn:hover {
-        background: rgba(42, 42, 42, 0.95);
-        border-color: #e8b84a;
-        color: #f5d078;
-      }
-
-      #fullscreen-btn svg {
-        width: 22px;
-        height: 22px;
-        pointer-events: none;
-      }
-
-      #fullscreen-btn .icon-exit {
-        display: none;
-      }
-
-      #fullscreen-btn.is-active .icon-enter {
-        display: none;
-      }
-
-      #fullscreen-btn.is-active .icon-exit {
-        display: block;
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.7);
       }
     </style>
   </head>
   <body>
-    <div id="loading-screen">
-      <p class="loading-title">Dice Poker</p>
-      <div class="loading-spinner" aria-hidden="true"></div>
-      <div class="loading-progress-wrap">
-        <div class="loading-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <div id="loading-progress-fill" class="loading-progress-fill"></div>
-        </div>
-        <div class="loading-meta">
-          <p id="loading-status">Preparing game...</p>
-          <p id="loading-percent">0%</p>
-        </div>
-      </div>
+    <div id="loading" role="status" aria-live="polite">
+      <h1>Dice Poker</h1>
+      <div id="loading-bar" aria-hidden="true"><div id="loading-fill"></div></div>
+      <p id="loading-label">Spiel wird geladen…</p>
     </div>
 
-    <div id="app-root">
-      <div id="game-shell">
+    <div id="player">
+      <div id="stage">
         <canvas id="unity-canvas" tabindex="-1"></canvas>
       </div>
-      <div id="game-controls">
-        <button id="fullscreen-btn" type="button" aria-label="Enter fullscreen" title="Fullscreen">
-          <svg class="icon-enter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-          </svg>
-          <svg class="icon-exit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
-          </svg>
+      <footer id="toolbar" hidden>
+        <button id="fs-toggle" type="button" aria-pressed="false" aria-label="Vollbild">
+          <span id="fs-icon" aria-hidden="true"></span>
         </button>
-      </div>
+      </footer>
     </div>
 
     <script>
-      var canvas = document.querySelector("#unity-canvas");
-      var fullscreenBtn = document.querySelector("#fullscreen-btn");
+      (function () {
+        "use strict";
 
-      var isCoarsePointer = window.matchMedia("(pointer: coarse)").matches;
-      var isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent)
-        || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-      /* iPhone Safari does not support requestFullscreen(); iPad support is inconsistent. */
-      var usePseudoFullscreenOnly = isIOS;
+        var DESIGN_ASPECT = 1080 / 720;
+        var ICON_ENTER = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3\"/></svg>";
+        var ICON_EXIT = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3\"/></svg>";
 
-      function notifyCanvasResize() {
-        window.dispatchEvent(new Event("resize"));
-        if (window.visualViewport) {
-          window.dispatchEvent(new Event("orientationchange"));
-        }
-      }
+        var canvas = document.getElementById("unity-canvas");
+        var stage = document.getElementById("stage");
+        var toolbar = document.getElementById("toolbar");
+        var fsToggle = document.getElementById("fs-toggle");
+        var fsIcon = document.getElementById("fs-icon");
+        var loading = document.getElementById("loading");
+        var loadingFill = document.getElementById("loading-fill");
+        var loadingLabel = document.getElementById("loading-label");
 
-      function minimizeMobileBrowserChrome() {
-        window.scrollTo(0, 1);
-        setTimeout(function () { window.scrollTo(0, 0); }, 50);
-      }
+        var gameReady = false;
+        var layoutTimer = null;
 
-      function getFullscreenElement() {
-        return document.fullscreenElement
-          || document.webkitFullscreenElement
-          || document.mozFullScreenElement
-          || document.msFullscreenElement;
-      }
+        var isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent)
+          || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        var isMobile = isIOS
+          || /Android/i.test(navigator.userAgent)
+          || (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
 
-      function tryNativeFullscreen(target) {
-        var request = target.requestFullscreen
-          || target.webkitRequestFullscreen
-          || target.mozRequestFullScreen
-          || target.msRequestFullscreen;
-        if (!request) {
-          return Promise.reject(new Error("Native fullscreen API unavailable."));
-        }
-        return Promise.resolve(request.call(target));
-      }
-
-      function requestNativeFullscreen() {
-        return tryNativeFullscreen(document.documentElement)
-          .catch(function () { return tryNativeFullscreen(canvas); });
-      }
-
-      function exitNativeFullscreen() {
-        var exit = document.exitFullscreen
-          || document.webkitExitFullscreen
-          || document.mozCancelFullScreen
-          || document.msExitFullscreen;
-        if (!exit || !getFullscreenElement()) {
-          return Promise.resolve();
-        }
-        return Promise.resolve(exit.call(document));
-      }
-
-      function isPseudoFullscreenActive() {
-        return document.documentElement.classList.contains("pseudo-fullscreen");
-      }
-
-      function enterPseudoFullscreen() {
-        document.documentElement.classList.add("pseudo-fullscreen");
-        minimizeMobileBrowserChrome();
-        notifyCanvasResize();
-        return Promise.resolve();
-      }
-
-      function exitPseudoFullscreen() {
-        document.documentElement.classList.remove("pseudo-fullscreen");
-        notifyCanvasResize();
-        return Promise.resolve();
-      }
-
-      function isFullscreenActive() {
-        return !!getFullscreenElement() || isPseudoFullscreenActive();
-      }
-
-      function enterFullscreen() {
-        if (isFullscreenActive()) {
-          return Promise.resolve();
+        function getDpr() {
+          var dpr = window.devicePixelRatio || 1;
+          return isMobile ? Math.min(dpr, 1.5) : Math.min(dpr, 2);
         }
 
-        if (usePseudoFullscreenOnly) {
-          return enterPseudoFullscreen();
-        }
+        function fitCanvas() {
+          if (!stage || !canvas) return;
+          var sw = stage.clientWidth;
+          var sh = stage.clientHeight;
+          if (sw < 1 || sh < 1) return;
 
-        return requestNativeFullscreen()
-          .then(minimizeMobileBrowserChrome)
-          .catch(function () { return enterPseudoFullscreen(); });
-      }
-
-      function exitAnyFullscreen() {
-        if (getFullscreenElement()) {
-          return exitNativeFullscreen().then(notifyCanvasResize);
-        }
-        if (isPseudoFullscreenActive()) {
-          return exitPseudoFullscreen();
-        }
-        return Promise.resolve();
-      }
-
-      function updateFullscreenButton() {
-        var active = isFullscreenActive();
-        fullscreenBtn.classList.toggle("is-active", active);
-        fullscreenBtn.setAttribute("aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
-        fullscreenBtn.setAttribute("title", active ? "Exit fullscreen" : "Fullscreen");
-      }
-
-      window.dicePokerFullscreen = {
-        enter: enterFullscreen,
-        toggle: function () {
-          if (isFullscreenActive()) {
-            return exitAnyFullscreen();
+          var shellAspect = sw / sh;
+          var w, h;
+          if (shellAspect > DESIGN_ASPECT) {
+            h = sh;
+            w = Math.floor(h * DESIGN_ASPECT);
+          } else {
+            w = sw;
+            h = Math.floor(w / DESIGN_ASPECT);
           }
-          return enterFullscreen();
-        },
-        isActive: isFullscreenActive,
-        usesPseudoFullscreen: function () { return usePseudoFullscreenOnly || isPseudoFullscreenActive(); }
-      };
 
-      fullscreenBtn.addEventListener("click", function () {
-        window.dicePokerFullscreen.toggle()
-          .then(updateFullscreenButton)
-          .catch(function (err) { console.warn(err); });
-      });
+          canvas.style.width = w + "px";
+          canvas.style.height = h + "px";
 
-      document.addEventListener("fullscreenchange", function () {
-        updateFullscreenButton();
-        notifyCanvasResize();
-      });
-      document.addEventListener("webkitfullscreenchange", updateFullscreenButton);
-      window.addEventListener("orientationchange", function () {
-        if (isPseudoFullscreenActive()) {
-          minimizeMobileBrowserChrome();
+          if (gameReady) {
+            window.dispatchEvent(new Event("resize"));
+          }
         }
-        notifyCanvasResize();
-      });
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener("resize", notifyCanvasResize);
-      }
-      updateFullscreenButton();
 
-      var appRoot = document.querySelector("#app-root");
-
-      function showFullscreenControls() {
-        appRoot.classList.add("visible");
-      }
-      var loadingScreen = document.querySelector("#loading-screen");
-      var progressFill = document.querySelector("#loading-progress-fill");
-      var progressBar = document.querySelector(".loading-progress-track");
-      var loadingStatus = document.querySelector("#loading-status");
-      var loadingPercent = document.querySelector("#loading-percent");
-
-      function setLoadingProgress(progress) {
-        var percent = Math.round(progress * 100);
-        progressFill.style.width = percent + "%";
-        progressBar.setAttribute("aria-valuenow", percent);
-        loadingPercent.textContent = percent + "%";
-
-        if (progress < 0.2) {
-          loadingStatus.textContent = "Downloading game data...";
-        } else if (progress < 0.6) {
-          loadingStatus.textContent = "Loading engine...";
-        } else if (progress < 0.95) {
-          loadingStatus.textContent = "Starting up...";
-        } else {
-          loadingStatus.textContent = "Almost ready...";
+        function scheduleLayout() {
+          clearTimeout(layoutTimer);
+          layoutTimer = setTimeout(fitCanvas, 50);
         }
-      }
 
-      function hideLoadingScreen() {
-        loadingScreen.classList.add("hidden");
-      }
+        if (window.ResizeObserver && stage) {
+          new ResizeObserver(scheduleLayout).observe(stage);
+        }
+        window.addEventListener("resize", scheduleLayout);
+        window.addEventListener("orientationchange", scheduleLayout);
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener("resize", scheduleLayout);
+        }
 
-      var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/{{{ LOADER_FILENAME }}}";
-      var config = {
-        dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
-        frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
-        codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "{{{ COMPANY_NAME }}}",
-        productName: "{{{ PRODUCT_NAME }}}",
-        productVersion: "{{{ PRODUCT_VERSION }}}",
-      };
+        function nativeFullscreenElement() {
+          return document.fullscreenElement
+            || document.webkitFullscreenElement
+            || document.mozFullScreenElement
+            || document.msFullscreenElement
+            || null;
+        }
 
-      setLoadingProgress(0);
+        function requestNativeFullscreen(el) {
+          var fn = el.requestFullscreen
+            || el.webkitRequestFullscreen
+            || el.mozRequestFullScreen
+            || el.msRequestFullscreen;
+          if (!fn) return Promise.reject(new Error("Fullscreen API not supported"));
+          return Promise.resolve(fn.call(el));
+        }
 
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        loadingStatus.textContent = "Initializing...";
-        createUnityInstance(canvas, config, (progress) => {
-          setLoadingProgress(progress);
-        }).then(() => {
-          setLoadingProgress(1);
-          hideLoadingScreen();
-          showFullscreenControls();
-        }).catch((message) => {
-          loadingStatus.textContent = "Failed to load.";
-          alert(message);
+        function exitNativeFullscreen() {
+          if (!nativeFullscreenElement()) return Promise.resolve();
+          var fn = document.exitFullscreen
+            || document.webkitExitFullscreen
+            || document.mozCancelFullScreen
+            || document.msExitFullscreen;
+          return fn ? Promise.resolve(fn.call(document)) : Promise.resolve();
+        }
+
+        function isExpanded() {
+          return document.documentElement.classList.contains("player-expanded");
+        }
+
+        function enterExpanded() {
+          document.documentElement.classList.add("player-expanded");
+          if (isMobile) {
+            window.scrollTo(0, 1);
+            setTimeout(function () { window.scrollTo(0, 0); }, 100);
+          }
+          scheduleLayout();
+        }
+
+        function exitExpanded() {
+          document.documentElement.classList.remove("player-expanded");
+          scheduleLayout();
+        }
+
+        function isFullscreen() {
+          return !!nativeFullscreenElement() || isExpanded();
+        }
+
+        function enterFullscreen() {
+          if (isFullscreen()) return Promise.resolve();
+
+          if (isIOS) {
+            enterExpanded();
+            return Promise.resolve();
+          }
+
+          return requestNativeFullscreen(document.documentElement)
+            .catch(function () { return requestNativeFullscreen(canvas); })
+            .catch(function () { enterExpanded(); })
+            .then(scheduleLayout);
+        }
+
+        function exitFullscreen() {
+          if (nativeFullscreenElement()) {
+            return exitNativeFullscreen().then(scheduleLayout);
+          }
+          if (isExpanded()) {
+            exitExpanded();
+          }
+          return Promise.resolve();
+        }
+
+        function toggleFullscreen() {
+          return isFullscreen() ? exitFullscreen() : enterFullscreen();
+        }
+
+        function updateFsButton() {
+          var on = isFullscreen();
+          fsIcon.innerHTML = on ? ICON_EXIT : ICON_ENTER;
+          fsToggle.setAttribute("aria-pressed", on ? "true" : "false");
+          fsToggle.setAttribute("aria-label", on ? "Vollbild beenden" : "Vollbild");
+        }
+
+        window.dicePokerFullscreen = {
+          enter: enterFullscreen,
+          toggle: toggleFullscreen,
+          isActive: isFullscreen,
+          usesPseudoFullscreen: function () { return isIOS || isExpanded(); }
+        };
+
+        fsToggle.addEventListener("click", function () {
+          toggleFullscreen()
+            .then(updateFsButton)
+            .catch(function (err) { console.warn("[Dice Poker]", err); });
         });
-      };
-      script.onerror = () => {
-        loadingStatus.textContent = "Failed to download loader.";
-      };
-      document.body.appendChild(script);
+
+        ["fullscreenchange", "webkitfullscreenchange"].forEach(function (evt) {
+          document.addEventListener(evt, function () {
+            updateFsButton();
+            scheduleLayout();
+          });
+        });
+
+        function setProgress(p) {
+          var pct = Math.round(p * 100);
+          loadingFill.style.width = pct + "%";
+          if (p < 0.25) loadingLabel.textContent = "Daten werden geladen…";
+          else if (p < 0.6) loadingLabel.textContent = "Engine wird gestartet…";
+          else if (p < 0.95) loadingLabel.textContent = "Fast fertig…";
+          else loadingLabel.textContent = "Bereit.";
+        }
+
+        function onGameReady() {
+          gameReady = true;
+          toolbar.hidden = false;
+          loading.classList.add("done");
+          scheduleLayout();
+          updateFsButton();
+        }
+
+        var buildUrl = "Build";
+        var config = {
+          dataUrl: buildUrl + "/{{{ DATA_FILENAME }}}",
+          frameworkUrl: buildUrl + "/{{{ FRAMEWORK_FILENAME }}}",
+          codeUrl: buildUrl + "/{{{ CODE_FILENAME }}}",
+          streamingAssetsUrl: "StreamingAssets",
+          companyName: "{{{ COMPANY_NAME }}}",
+          productName: "{{{ PRODUCT_NAME }}}",
+          productVersion: "{{{ PRODUCT_VERSION }}}",
+          matchWebGLToCanvasSize: true,
+          devicePixelRatio: getDpr()
+        };
+
+        setProgress(0);
+        scheduleLayout();
+        updateFsButton();
+
+        var loader = document.createElement("script");
+        loader.src = buildUrl + "/{{{ LOADER_FILENAME }}}";
+        loader.onload = function () {
+          loadingLabel.textContent = "Initialisierung…";
+          createUnityInstance(canvas, config, function (progress) {
+            setProgress(progress);
+            if (progress > 0.05) scheduleLayout();
+          }).then(function () {
+            setProgress(1);
+            onGameReady();
+          }).catch(function (msg) {
+            loadingLabel.textContent = "Laden fehlgeschlagen.";
+            alert(msg);
+          });
+        };
+        loader.onerror = function () {
+          loadingLabel.textContent = "Loader konnte nicht geladen werden.";
+        };
+        document.body.appendChild(loader);
+      })();
     </script>
   </body>
 </html>
