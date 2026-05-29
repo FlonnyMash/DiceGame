@@ -45,8 +45,8 @@ PlayerSettings:
   m_VirtualRealitySplashScreen: {fileID: 2800000, guid: 35a4c965056a7a641bb4d3f43baa767d, type: 3}
   defaultScreenWidth: 1080
   defaultScreenHeight: 720
-  defaultScreenWidthWeb: 1080
-  defaultScreenHeightWeb: 720
+  defaultScreenWidthWeb: 1920
+  defaultScreenHeightWeb: 1080
   m_StereoRenderingPath: 0
   m_ActiveColorSpace: 1
   unsupportedMSAAFallback: 0
@@ -851,7 +851,7 @@ PlayerSettings:
   webGLDebugSymbols: 0
   webGLEmscriptenArgs: 
   webGLModulesDirectory: 
-  webGLTemplate: PROJECT:Design1080x720
+  webGLTemplate: APPLICATION:Default
   webGLAnalyzeBuildSize: 0
   webGLUseEmbeddedResources: 0
   webGLCompressionFormat: 2
